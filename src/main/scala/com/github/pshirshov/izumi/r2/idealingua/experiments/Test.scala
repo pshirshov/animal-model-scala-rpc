@@ -6,6 +6,7 @@ import scala.language.{higherKinds, implicitConversions}
 
 import runtime._
 import generated._
+import impls._
 
 //--------------------------------------------------------------------------
 // Runtime: opinionated part
@@ -40,22 +41,9 @@ class ClientDispatcher[RequestWire, Request, ResponseWire, Response, R[_] : Serv
 }
 
 
-
 //--------------------------------------------------------------------------
 // setup context and use
-trait AbstractGreeterServer[R[_]] extends GreeterService[R] with WithResult[R] {
-  override def greet(name: String, surname: String): Result[String] = _Result {
-    s"Hi, $name $surname!"
-  }
-}
 
-object AbstractGreeterServer {
-
-  class Impl[R[_] : ServiceResult] extends AbstractGreeterServer[R] {
-    override protected def _ServiceResult: ServiceResult[R] = implicitly
-  }
-
-}
 
 
 class TrivialAppTransport[I, O, R[_]](server: Receiver[I, O, R]) extends Transport[I, R[O]] {
@@ -111,7 +99,6 @@ object Test {
   }
 
 
-
   class ConvertingDemo[R[_] : ServiceResult, RT[_] : ServiceResult]
   (
     marshalling: GSMarshaler
@@ -165,7 +152,6 @@ object Test {
 
   private def testConverting(marshalling: GSMarshaler): Unit = {
     import ServiceResultTransformer._
-
 
 
     {
