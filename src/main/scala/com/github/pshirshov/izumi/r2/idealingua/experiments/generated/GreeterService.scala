@@ -30,23 +30,23 @@ object GreeterServiceWrapped {
 
 
   object GreetInput {
-    implicit val encodeTestPayload: Encoder[GreetInput] = deriveEncoder
-    implicit val decodeTestPayload: Decoder[GreetInput] = deriveDecoder
+    implicit val encode: Encoder[GreetInput] = deriveEncoder
+    implicit val decode: Decoder[GreetInput] = deriveDecoder
   }
 
   object GreetOutput {
-    implicit val encodeTestPayload: Encoder[GreetOutput] = deriveEncoder
-    implicit val decodeTestPayload: Decoder[GreetOutput] = deriveDecoder
+    implicit val encode: Encoder[GreetOutput] = deriveEncoder
+    implicit val decode: Decoder[GreetOutput] = deriveDecoder
   }
 
   object GreeterServiceInput {
-    implicit val encodeTestPayload: Encoder[GreeterServiceInput] = deriveEncoder
-    implicit val decodeTestPayload: Decoder[GreeterServiceInput] = deriveDecoder
+    implicit val encode: Encoder[GreeterServiceInput] = deriveEncoder
+    implicit val decode: Decoder[GreeterServiceInput] = deriveDecoder
   }
 
   object GreeterServiceOutput {
-    implicit val encodeTestPayload: Encoder[GreeterServiceOutput] = deriveEncoder
-    implicit val decodeTestPayload: Decoder[GreeterServiceOutput] = deriveDecoder
+    implicit val encode: Encoder[GreeterServiceOutput] = deriveEncoder
+    implicit val decode: Decoder[GreeterServiceOutput] = deriveDecoder
   }
 
   trait GreeterServiceDispatcherPacking[R[_]]

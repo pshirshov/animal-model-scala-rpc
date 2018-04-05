@@ -15,7 +15,7 @@ trait CalculatorServiceWrapped[R[_]] extends WithResultType[R] {
 
   import CalculatorServiceWrapped._
 
-  def greet(input: SumInput): Result[SumOutput]
+  def sum(input: SumInput): Result[SumOutput]
 }
 
 object CalculatorServiceWrapped {
@@ -48,66 +48,66 @@ object CalculatorServiceWrapped {
     implicit val decodeTestPayload: Decoder[CalculatorServiceInput] = deriveDecoder
   }
   
-  trait CalculatorServiceDispatcherPacking[R[_]] extends CalculatorService[R] with WithResult[R] {
-    def dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
-
-    def sum(a: Int, b: Int): Result[Int] = {
-      val packed = SumInput(a, b)
-      val dispatched = dispatcher.dispatch(packed)
-      _ServiceResult.map(dispatched) {
-        case o: SumOutput =>
-          o.value
-      }
-    }
-  }
-
-  object CalculatorServiceDispatcherPacking {
-
-    class Impl[R[_] : ServiceResult](val dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]) extends CalculatorServiceDispatcherPacking[R] {
-      override protected def _ServiceResult: ServiceResult[R] = implicitly
-    }
-
-  }
-
-
-  trait CalculatorServiceDispatcherUnpacking[R[_]]
-    extends CalculatorServiceWrapped[R]
-      with Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
-      with UnsafeDispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
-      with WithResult[R] {
-    def service: CalculatorService[R]
-
-
-    def greet(input: SumInput): Result[SumOutput] = {
-      val result = service.sum(input.a, input.b)
-      _ServiceResult.map(result)(SumOutput.apply)
-    }
-
-    def dispatch(input: CalculatorServiceInput): Result[CalculatorServiceOutput] = {
-      input match {
-        case v: SumInput =>
-          _ServiceResult.map(greet(v))(v => v) // upcast
-      }
-    }
-
-    def dispatchUnsafe(input: AnyRef): Option[Result[AnyRef]] = {
-      input match {
-        case v: CalculatorServiceInput =>
-          Option(_ServiceResult.map(dispatch(v))(v => v))
-
-        case _ =>
-          None
-      }
-    }
-
-  }
-
-  object CalculatorServiceDispatcherUnpacking {
-
-    class Impl[R[_] : ServiceResult](val service: CalculatorService[R]) extends CalculatorServiceDispatcherUnpacking[R] {
-      override protected def _ServiceResult: ServiceResult[R] = implicitly
-    }
-
-  }
+//  trait CalculatorServiceDispatcherPacking[R[_]] extends CalculatorService[R] with WithResult[R] {
+//    def dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
+//
+//    def sum(a: Int, b: Int): Result[Int] = {
+//      val packed = SumInput(a, b)
+//      val dispatched = dispatcher.dispatch(packed)
+//      _ServiceResult.map(dispatched) {
+//        case o: SumOutput =>
+//          o.value
+//      }
+//    }
+//  }
+//
+//  object CalculatorServiceDispatcherPacking {
+//
+//    class Impl[R[_] : ServiceResult](val dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]) extends CalculatorServiceDispatcherPacking[R] {
+//      override protected def _ServiceResult: ServiceResult[R] = implicitly
+//    }
+//
+//  }
+//
+//
+//  trait CalculatorServiceDispatcherUnpacking[R[_]]
+//    extends CalculatorServiceWrapped[R]
+//      with Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
+//      with UnsafeDispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
+//      with WithResult[R] {
+//    def service: CalculatorService[R]
+//
+//
+//    def sum(input: SumInput): Result[SumOutput] = {
+//      val result = service.sum(input.a, input.b)
+//      _ServiceResult.map(result)(SumOutput.apply)
+//    }
+//
+//    def dispatch(input: CalculatorServiceInput): Result[CalculatorServiceOutput] = {
+//      input match {
+//        case v: SumInput =>
+//          _ServiceResult.map(sum(v))(v => v) // upcast
+//      }
+//    }
+//
+//    def dispatchUnsafe(input: AnyRef): Option[Result[AnyRef]] = {
+//      input match {
+//        case v: CalculatorServiceInput =>
+//          Option(_ServiceResult.map(dispatch(v))(v => v))
+//
+//        case _ =>
+//          None
+//      }
+//    }
+//
+//  }
+//
+//  object CalculatorServiceDispatcherUnpacking {
+//
+//    class Impl[R[_] : ServiceResult](val service: CalculatorService[R]) extends CalculatorServiceDispatcherUnpacking[R] {
+//      override protected def _ServiceResult: ServiceResult[R] = implicitly
+//    }
+//
+//  }
 
 }
