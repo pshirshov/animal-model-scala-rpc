@@ -113,3 +113,8 @@ trait Dispatcher[In, Out, R[_]] extends WithResultType[R] {
 trait Receiver[In, Out, R[_]] extends WithResultType[R] {
   def receive(input: In): Result[Out]
 }
+
+trait TransportException
+
+class UnparseableDataException(message: String) extends RuntimeException(message) with TransportException
+class TypeMismatchException(message: String, val v: Any) extends RuntimeException(message) with TransportException

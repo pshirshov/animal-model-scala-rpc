@@ -53,6 +53,7 @@ class TrivialAppTransport[I, O, R[_]](server: Receiver[I, O, R]) extends Transpo
 class PseudoNetwork[I, O, R[_], RT[_]](transport: Transport[I, R[O]])(implicit converter: ServiceResultTransformer[R, RT]) extends Transport[I, RT[O]] {
   def send(v: I): RT[O] = {
     val sent = transport.send(v)
+    //println(s"on wire: $v")
     converter.transform(sent)
   }
 }

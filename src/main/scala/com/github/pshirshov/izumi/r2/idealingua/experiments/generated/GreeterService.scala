@@ -3,7 +3,6 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
 import io.circe._
 import io.circe.generic.semiauto._
-import io.circe.parser.parse
 
 import scala.language.{higherKinds, implicitConversions}
 //--------------------------------------------------------------------------
@@ -60,6 +59,8 @@ object GreeterServiceWrapped {
       _ServiceResult.map(dispatched) {
         case o: GreetOutput =>
           o.value
+        case o =>
+          throw new TypeMismatchException(s"Unexpected input in GreeterServiceDispatcherPacking.greet: $o", o)
       }
     }
   }
@@ -105,7 +106,12 @@ object GreeterServiceWrapped {
     import io.circe.syntax._
 
     override val requestUnmarshaller: Unmarshaller[String, GreeterServiceInput] = (v: String) => {
-      parse(v).flatMap(_.as[GreeterServiceInput]).right.get
+      parse(v).flatMap(_.as[GreeterServiceInput]) match {
+        case Right(value) =>
+          value
+        case Left(problem) =>
+          throw new UnparseableDataException(s"Cannot parse $problem into GreeterServiceInput")
+      }
     }
 
     override val responseUnmarshaller: Unmarshaller[String, GreeterServiceOutput] = (v: String) => {
