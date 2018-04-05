@@ -5,8 +5,7 @@ import io.circe._
 import io.circe.generic.semiauto._
 
 import scala.language.{higherKinds, implicitConversions}
-//--------------------------------------------------------------------------
-// Generated part
+
 trait GreeterService[R[_]] extends WithResultType[R] {
   def greet(name: String, surname: String): Result[String]
 }
@@ -50,7 +49,9 @@ object GreeterServiceWrapped {
     implicit val decodeTestPayload: Decoder[GreeterServiceOutput] = deriveDecoder
   }
 
-  trait GreeterServiceDispatcherPacking[R[_]] extends GreeterService[R] with WithResult[R] {
+  trait GreeterServiceDispatcherPacking[R[_]]
+    extends GreeterService[R]
+      with WithResult[R] {
     def dispatcher: Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]
 
     def greet(name: String, surname: String): Result[String] = {
@@ -65,6 +66,21 @@ object GreeterServiceWrapped {
     }
   }
 
+  class GreeterServiceSafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[AnyRef, AnyRef, R]) extends Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] with WithResult[R] {
+    override protected def _ServiceResult: ServiceResult[R] = implicitly
+
+    import ServiceResult._
+
+    override def dispatch(input: GreeterServiceInput): Result[GreeterServiceOutput] = {
+      dispatcher.dispatch(input).map {
+        case t: GreeterServiceOutput =>
+          t
+        case o =>
+          throw new TypeMismatchException(s"Unexpected output in GreeterServiceSafeToUnsafeBridge.dispatch: $o", o)
+      }
+    }
+  }
+
   object GreeterServiceDispatcherPacking {
 
     class Impl[R[_] : ServiceResult](val dispatcher: Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]) extends GreeterServiceDispatcherPacking[R] {
@@ -74,11 +90,15 @@ object GreeterServiceWrapped {
   }
 
 
-  trait GreeterServiceDispatcherUnpacking[R[_]] extends GreeterServiceWrapped[R] with Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] with WithResult[R] {
+  trait GreeterServiceDispatcherUnpacking[R[_]]
+    extends GreeterServiceWrapped[R]
+      with Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]
+      with UnsafeDispatcher[GreeterServiceInput, GreeterServiceOutput, R]
+      with WithResult[R] {
     def service: GreeterService[R]
 
 
-    override def greet(input: GreetInput): Result[GreetOutput] = {
+    def greet(input: GreetInput): Result[GreetOutput] = {
       val result = service.greet(input.name, input.surname)
       _ServiceResult.map(result)(GreetOutput.apply)
     }
@@ -87,6 +107,16 @@ object GreeterServiceWrapped {
       input match {
         case v: GreetInput =>
           _ServiceResult.map(greet(v))(v => v) // upcast
+      }
+    }
+
+    def dispatchUnsafe(input: AnyRef): Option[Result[AnyRef]] = {
+      input match {
+        case v: GreeterServiceInput =>
+          Option(_ServiceResult.map(dispatch(v))(v => v))
+
+        case _ =>
+          None
       }
     }
   }
@@ -102,6 +132,7 @@ object GreeterServiceWrapped {
   type GreeterServiceStringMarshaller = TransportMarshallers[String, GreeterServiceInput, String, GreeterServiceOutput]
 
   class GreeterServiceStringMarshallerCirceImpl extends GreeterServiceStringMarshaller {
+
     import io.circe.parser._
     import io.circe.syntax._
 
@@ -121,4 +152,5 @@ object GreeterServiceWrapped {
     override val requestMarshaller: Marshaller[GreeterServiceInput, String] = (v: GreeterServiceInput) => v.asJson.noSpaces
     override val responseMarshaller: Marshaller[GreeterServiceOutput, String] = (v: GreeterServiceOutput) => v.asJson.noSpaces
   }
+
 }

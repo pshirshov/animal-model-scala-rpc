@@ -3,8 +3,9 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments
 import com.github.pshirshov.izumi.r2.idealingua.experiments
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.impls._
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.{TransportMarshallers, _}
 
+import scala.collection.immutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.{higherKinds, implicitConversions}
 import scala.util.Try
@@ -41,6 +42,19 @@ class ClientDispatcher[RequestWire, Request, ResponseWire, Response, R[_] : Serv
   }
 }
 
+class ServerMultiplexor[R[_]](dispatchers: List[UnsafeDispatcher[_, _, R]]) extends Dispatcher[AnyRef, AnyRef, R] {
+  override def dispatch(input: AnyRef): Result[AnyRef] = {
+    dispatchers.foreach {
+      d =>
+        d.dispatchUnsafe(input) match {
+          case Some(v) =>
+            return v
+          case None =>
+        }
+    }
+    throw new MultiplexingException(s"Cannot handle $input, services: $dispatchers", input)
+  }
+}
 
 //--------------------------------------------------------------------------
 // setup context and use
@@ -59,9 +73,11 @@ class PseudoNetwork[I, O, R[_], RT[_]](transport: Transport[I, R[O]])(implicit c
 }
 
 
-import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped._
+
+
 
 object Test {
+  import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped._
 
   class FailingMarshallers extends GreeterServiceWrapped.GreeterServiceStringMarshaller {
     override val requestUnmarshaller: Unmarshaller[String, GreeterServiceInput] = (v: String) => ???
@@ -70,54 +86,30 @@ object Test {
     override val responseUnmarshaller: Unmarshaller[String, GreeterServiceOutput] = (v: String) => ???
   }
 
+  type M = TransportMarshallers[String, AnyRef, String, AnyRef]
   class SimpleDemo[R[_] : ServiceResult]
   (
-    marshalling: GreeterServiceWrapped.GreeterServiceStringMarshaller
+    marshalling: M
   ) {
+    val greeterService = new AbstractGreeterServer.Impl[R]
+    val calculatorService = new AbstractCalculatorServer.Impl[R]
+    val greeterDispatcher = new GreeterServiceWrapped.GreeterServiceDispatcherUnpacking.Impl(greeterService)
+    val calculatorDispatcher = new CalculatorServiceWrapped.CalculatorServiceDispatcherUnpacking.Impl(calculatorService)
 
-
-    val service = new AbstractGreeterServer.Impl[R]
-
-    val serverDispatcher = new GreeterServiceWrapped.GreeterServiceDispatcherUnpacking.Impl(service)
-
-    val server = new ServerReceiver(serverDispatcher, marshalling)
+    val list: List[UnsafeDispatcher[_, _, R]] = List(greeterDispatcher, calculatorDispatcher)
+    val multiplexor = new ServerMultiplexor[R](list)
+    val server = new ServerReceiver(multiplexor, marshalling)
 
     val appTransport = new TrivialAppTransport(server)
 
     val clientDispatcher = new ClientDispatcher(appTransport, marshalling)
-    val client = new GreeterServiceWrapped.GreeterServiceDispatcherPacking.Impl(clientDispatcher)
+    val client = new GreeterServiceWrapped.GreeterServiceDispatcherPacking.Impl(new GreeterServiceWrapped.GreeterServiceSafeToUnsafeBridge(clientDispatcher))
   }
 
 
-  class ConvertingDemo[R[_] : ServiceResult, RT[_] : ServiceResult]
-  (
-    marshalling: GreeterServiceWrapped.GreeterServiceStringMarshaller
-  )
-  (
-    implicit converter: ServiceResultTransformer[RT, R]
-    , converter1: ServiceResultTransformer[R, RT]
-  ) {
 
 
-    val service = new AbstractGreeterServer.Impl[R]
-
-    val serverDispatcher = new GreeterServiceWrapped.GreeterServiceDispatcherUnpacking.Impl(service)
-
-    val server = new ServerReceiver(serverDispatcher, marshalling)
-
-    val serverAppTransport: TrivialAppTransport[String, String, R] = new TrivialAppTransport(server)
-
-    val serverNetwork: PseudoNetwork[String, String, R, RT] = new PseudoNetwork[String, String, R, RT](serverAppTransport)
-
-    val clientNetwork: PseudoNetwork[String, String, RT, R] = new PseudoNetwork[String, String, RT, R](serverNetwork)
-
-    val clientDispatcher = new ClientDispatcher(clientNetwork, marshalling)
-
-    val client = new GreeterServiceWrapped.GreeterServiceDispatcherPacking.Impl(clientDispatcher)
-  }
-
-
-  private def testSimple(marshalling: GreeterServiceWrapped.GreeterServiceStringMarshaller): Unit = {
+  private def testSimple(marshalling: M): Unit = {
     println()
     println("testSimple...")
     println(Try({
@@ -141,37 +133,9 @@ object Test {
   }
 
 
-  private def testConverting(marshalling: GreeterServiceWrapped.GreeterServiceStringMarshaller): Unit = {
-    import ServiceResultTransformer._
-
-    println()
-    println("testConverting...")
-
-    println(Try({
-      val demo = new ConvertingDemo[Try, Try](marshalling)
-      demo.client.greet("John", "Doe")
-    }))
-
-    println(Try({
-      import ExecutionContext.Implicits._
-      val demo = new ConvertingDemo[Future, Future](marshalling)
-      val result = demo.client.greet("John", "Doe")
-      Thread.sleep(100)
-      result
-    }))
-
-
-    println(Try({
-      val demo = new ConvertingDemo[Option, Option](marshalling)
-      demo.client.greet("John", "Doe")
-    }))
-  }
 
   def main(args: Array[String]): Unit = {
-    testSimple(new experiments.generated.GreeterServiceWrapped.GreeterServiceStringMarshallerCirceImpl())
-    testConverting(new experiments.generated.GreeterServiceWrapped.GreeterServiceStringMarshallerCirceImpl())
-
-    testSimple(new FailingMarshallers())
-    testConverting(new FailingMarshallers())
+    val m: M = ???
+    testSimple(m)
   }
 }

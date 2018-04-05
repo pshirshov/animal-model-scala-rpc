@@ -114,7 +114,17 @@ trait Receiver[In, Out, R[_]] extends WithResultType[R] {
   def receive(input: In): Result[Out]
 }
 
+trait UnsafeDispatcher[In, Out, R[_]] extends WithResultType[R] {
+  def dispatchUnsafe(input: AnyRef): Option[Result[AnyRef]]
+}
+
+trait UnsafeReceiver[In, Out, R[_]] extends WithResultType[R] {
+  def receiveUnsafe(input: AnyRef): Option[Result[AnyRef]]
+}
+
+
 trait TransportException
 
 class UnparseableDataException(message: String) extends RuntimeException(message) with TransportException
 class TypeMismatchException(message: String, val v: Any) extends RuntimeException(message) with TransportException
+class MultiplexingException(message: String, val v: Any) extends RuntimeException(message) with TransportException

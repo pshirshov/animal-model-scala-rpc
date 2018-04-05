@@ -5,8 +5,7 @@ import io.circe._
 import io.circe.generic.semiauto._
 
 import scala.language.{higherKinds, implicitConversions}
-//--------------------------------------------------------------------------
-// Generated part
+
 trait CalculatorService[R[_]] extends WithResultType[R] {
   def sum(a: Int, b: Int): Result[Int]
 }
@@ -71,11 +70,15 @@ object CalculatorServiceWrapped {
   }
 
 
-  trait CalculatorServiceDispatcherUnpacking[R[_]] extends CalculatorServiceWrapped[R] with Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with WithResult[R] {
+  trait CalculatorServiceDispatcherUnpacking[R[_]]
+    extends CalculatorServiceWrapped[R]
+      with Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
+      with UnsafeDispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
+      with WithResult[R] {
     def service: CalculatorService[R]
 
 
-    override def greet(input: SumInput): Result[SumOutput] = {
+    def greet(input: SumInput): Result[SumOutput] = {
       val result = service.sum(input.a, input.b)
       _ServiceResult.map(result)(SumOutput.apply)
     }
@@ -86,6 +89,17 @@ object CalculatorServiceWrapped {
           _ServiceResult.map(greet(v))(v => v) // upcast
       }
     }
+
+    def dispatchUnsafe(input: AnyRef): Option[Result[AnyRef]] = {
+      input match {
+        case v: CalculatorServiceInput =>
+          Option(_ServiceResult.map(dispatch(v))(v => v))
+
+        case _ =>
+          None
+      }
+    }
+
   }
 
   object CalculatorServiceDispatcherUnpacking {
