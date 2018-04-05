@@ -136,21 +136,76 @@ object GreeterServiceWrapped {
     import io.circe.parser._
     import io.circe.syntax._
 
-    override val requestUnmarshaller: Unmarshaller[String, GreeterServiceInput] = (v: String) => {
-      parse(v).flatMap(_.as[GreeterServiceInput]) match {
-        case Right(value) =>
-          value
-        case Left(problem) =>
-          throw new UnparseableDataException(s"Cannot parse $problem into GreeterServiceInput")
+    override val requestUnmarshaller: Unmarshaller[String, GreeterServiceInput] = new Unmarshaller[String, GreeterServiceInput] {
+      override def decode(v: String): GreeterServiceInput = {
+        parse(v).flatMap(_.as[GreeterServiceInput]) match {
+          case Right(value) =>
+            value
+          case Left(problem) =>
+            throw new UnparseableDataException(s"Cannot parse $problem into GreeterServiceInput")
+        }
+      }
+
+      override def decodeUnsafe(v: String): Option[GreeterServiceInput] = {
+        parse(v).flatMap(_.as[GreeterServiceInput]) match {
+          case Right(value) =>
+            Some(value)
+          case Left(problem) =>
+            None
+        }
       }
     }
 
-    override val responseUnmarshaller: Unmarshaller[String, GreeterServiceOutput] = (v: String) => {
-      parse(v).flatMap(_.as[GreeterServiceOutput]).right.get
+    override val responseUnmarshaller: Unmarshaller[String, GreeterServiceOutput] = new Unmarshaller[String, GreeterServiceOutput] {
+      override def decode(v: String): GreeterServiceOutput = {
+        parse(v).flatMap(_.as[GreeterServiceOutput]) match {
+          case Right(value) =>
+            value
+          case Left(problem) =>
+            throw new UnparseableDataException(s"Cannot parse $problem into GreeterServiceOutput")
+        }
+      }
+
+      override def decodeUnsafe(v: String): Option[GreeterServiceOutput] = {
+        parse(v).flatMap(_.as[GreeterServiceOutput]) match {
+          case Right(value) =>
+            Some(value)
+          case Left(problem) =>
+            None
+        }
+      }
     }
 
-    override val requestMarshaller: Marshaller[GreeterServiceInput, String] = (v: GreeterServiceInput) => v.asJson.noSpaces
-    override val responseMarshaller: Marshaller[GreeterServiceOutput, String] = (v: GreeterServiceOutput) => v.asJson.noSpaces
+    override val requestMarshaller: Marshaller[GreeterServiceInput, String] = new Marshaller[GreeterServiceInput, String] {
+      override def encode(v: GreeterServiceInput): String = {
+        v.asJson.noSpaces
+      }
+
+      override def encodeUnsafe(v: AnyRef): Option[String] = {
+        v match {
+          case i: GreeterServiceInput =>
+            Some(encode(i))
+          case _ =>
+            None
+        }
+      }
+    }
+
+    override val responseMarshaller: Marshaller[GreeterServiceOutput, String] = new Marshaller[GreeterServiceOutput, String] {
+      override def encode(v: GreeterServiceOutput): String = {
+        v.asJson.noSpaces
+      }
+
+      override def encodeUnsafe(v: AnyRef): Option[String] = {
+        v match {
+          case i: GreeterServiceOutput =>
+            Some(encode(i))
+          case _ =>
+            None
+        }
+      }
+    }
+
   }
 
 }

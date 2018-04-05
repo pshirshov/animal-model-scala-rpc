@@ -88,10 +88,12 @@ trait WithResult[R[_]] extends WithResultType[R] {
 
 trait Marshaller[Value, Marshalled] {
   def encode(v: Value): Marshalled
+  def encodeUnsafe(v: AnyRef): Option[Marshalled]
 }
 
 trait Unmarshaller[Marshalled, Value] {
   def decode(v: Marshalled): Value
+  def decodeUnsafe(v: Marshalled): Option[Value]
 }
 
 trait Transport[RequestWire, ResponseWire] {
