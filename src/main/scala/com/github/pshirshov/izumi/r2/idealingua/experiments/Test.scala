@@ -1,12 +1,13 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
-import scala.language.{higherKinds, implicitConversions}
+import com.github.pshirshov.izumi.r2.idealingua.experiments
+import com.github.pshirshov.izumi.r2.idealingua.experiments.generated._
+import com.github.pshirshov.izumi.r2.idealingua.experiments.impls._
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
 
-import runtime._
-import generated._
-import impls._
+import scala.concurrent.{ExecutionContext, Future}
+import scala.language.{higherKinds, implicitConversions}
+import scala.util.Try
 
 //--------------------------------------------------------------------------
 // Runtime: opinionated part
@@ -45,7 +46,6 @@ class ClientDispatcher[RequestWire, Request, ResponseWire, Response, R[_] : Serv
 // setup context and use
 
 
-
 class TrivialAppTransport[I, O, R[_]](server: Receiver[I, O, R]) extends Transport[I, R[O]] {
   def send(v: I): R[O] = server.receive(v)
 }
@@ -58,31 +58,20 @@ class PseudoNetwork[I, O, R[_], RT[_]](transport: Transport[I, R[O]])(implicit c
 }
 
 
-import GreeterServiceWrapped._
+import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped._
 
 object Test {
 
-  type GSMarshaler = TransportMarshallers[GreeterServiceInput, GreeterServiceInput, GreeterServiceOutput, GreeterServiceOutput]
-
-  class PseudoMarshallers extends GSMarshaler {
-    override val requestUnmarshaller: Unmarshaller[GreeterServiceInput, GreeterServiceInput] = (v: GreeterServiceInput) => v
-    override val requestMarshaller: Marshaller[GreeterServiceInput, GreeterServiceInput] = (v: GreeterServiceInput) => v
-    override val responseMarshaller: Marshaller[GreeterServiceOutput, GreeterServiceOutput] = (v: GreeterServiceOutput) => v
-    override val responseUnmarshaller: Unmarshaller[GreeterServiceOutput, GreeterServiceOutput] = (v: GreeterServiceOutput) => v
-
-  }
-
-  class FailingMarshallers extends GSMarshaler {
-    override val requestUnmarshaller: Unmarshaller[GreeterServiceInput, GreeterServiceInput] = (v: GreeterServiceInput) => ???
-    override val requestMarshaller: Marshaller[GreeterServiceInput, GreeterServiceInput] = (v: GreeterServiceInput) => ???
-    override val responseMarshaller: Marshaller[GreeterServiceOutput, GreeterServiceOutput] = (v: GreeterServiceOutput) => ???
-    override val responseUnmarshaller: Unmarshaller[GreeterServiceOutput, GreeterServiceOutput] = (v: GreeterServiceOutput) => ???
-
+  class FailingMarshallers extends GreeterServiceWrapped.GreeterServiceStringMarshaller {
+    override val requestUnmarshaller: Unmarshaller[String, GreeterServiceInput] = (v: String) => ???
+    override val requestMarshaller: Marshaller[GreeterServiceInput, String] = (v: GreeterServiceInput) => ???
+    override val responseMarshaller: Marshaller[GreeterServiceOutput, String] = (v: GreeterServiceOutput) => ???
+    override val responseUnmarshaller: Unmarshaller[String, GreeterServiceOutput] = (v: String) => ???
   }
 
   class SimpleDemo[R[_] : ServiceResult]
   (
-    marshalling: GSMarshaler
+    marshalling: GreeterServiceWrapped.GreeterServiceStringMarshaller
   ) {
 
 
@@ -101,7 +90,7 @@ object Test {
 
   class ConvertingDemo[R[_] : ServiceResult, RT[_] : ServiceResult]
   (
-    marshalling: GSMarshaler
+    marshalling: GreeterServiceWrapped.GreeterServiceStringMarshaller
   )
   (
     implicit converter: ServiceResultTransformer[RT, R]
@@ -115,11 +104,11 @@ object Test {
 
     val server = new ServerReceiver(serverDispatcher, marshalling)
 
-    val serverAppTransport = new TrivialAppTransport(server)
+    val serverAppTransport: TrivialAppTransport[String, String, R] = new TrivialAppTransport(server)
 
-    val serverNetwork: Transport[GreeterServiceInput, RT[GreeterServiceOutput]] = new PseudoNetwork[GreeterServiceInput, GreeterServiceOutput, R, RT](serverAppTransport)
+    val serverNetwork: PseudoNetwork[String, String, R, RT] = new PseudoNetwork[String, String, R, RT](serverAppTransport)
 
-    val clientNetwork: Transport[GreeterServiceInput, R[GreeterServiceOutput]] = new PseudoNetwork[GreeterServiceInput, GreeterServiceOutput, RT, R](serverNetwork)
+    val clientNetwork: PseudoNetwork[String, String, RT, R] = new PseudoNetwork[String, String, RT, R](serverNetwork)
 
     val clientDispatcher = new ClientDispatcher(clientNetwork, marshalling)
 
@@ -127,59 +116,61 @@ object Test {
   }
 
 
-  private def testSimple(marshalling: GSMarshaler): Unit = {
-    {
+  private def testSimple(marshalling: GreeterServiceWrapped.GreeterServiceStringMarshaller): Unit = {
+    println()
+    println("testSimple...")
+    println(Try({
       val demo = new SimpleDemo[Try](marshalling)
       val result = demo.client.greet("John", "Doe")
-      println(result)
-    }
+      result
+    }))
 
-    {
+    println(Try({
       import ExecutionContext.Implicits._
       val demo = new SimpleDemo[Future](marshalling)
       val result = demo.client.greet("John", "Doe")
       Thread.sleep(100)
-      println(result)
-    }
+      result
+    }))
 
-    {
+    println(Try({
       val demo = new SimpleDemo[Option](marshalling)
-      val result = demo.client.greet("John", "Doe")
-      println(result)
-    }
+      demo.client.greet("John", "Doe")
+    }))
   }
 
 
-  private def testConverting(marshalling: GSMarshaler): Unit = {
+  private def testConverting(marshalling: GreeterServiceWrapped.GreeterServiceStringMarshaller): Unit = {
     import ServiceResultTransformer._
 
+    println()
+    println("testConverting...")
 
-    {
+    println(Try({
       val demo = new ConvertingDemo[Try, Try](marshalling)
-      val result = demo.client.greet("John", "Doe")
-      println(result)
-    }
+      demo.client.greet("John", "Doe")
+    }))
 
-    {
+    println(Try({
       import ExecutionContext.Implicits._
       val demo = new ConvertingDemo[Future, Future](marshalling)
       val result = demo.client.greet("John", "Doe")
       Thread.sleep(100)
-      println(result)
-    }
+      result
+    }))
 
-    {
+
+    println(Try({
       val demo = new ConvertingDemo[Option, Option](marshalling)
-      val result = demo.client.greet("John", "Doe")
-      println(result)
-    }
+      demo.client.greet("John", "Doe")
+    }))
   }
 
   def main(args: Array[String]): Unit = {
-    testSimple(new PseudoMarshallers())
-    testConverting(new PseudoMarshallers())
+    testSimple(new experiments.generated.GreeterServiceWrapped.GreeterServiceStringMarshallerCirceImpl())
+    testConverting(new experiments.generated.GreeterServiceWrapped.GreeterServiceStringMarshallerCirceImpl())
 
-    println(Try(testSimple(new FailingMarshallers())))
-    println(Try(testConverting(new FailingMarshallers())))
+    testSimple(new FailingMarshallers())
+    testConverting(new FailingMarshallers())
   }
 }

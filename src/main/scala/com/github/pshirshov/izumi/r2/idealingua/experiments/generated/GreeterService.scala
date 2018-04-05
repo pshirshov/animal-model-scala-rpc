@@ -3,6 +3,7 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
 import io.circe._
 import io.circe.generic.semiauto._
+import io.circe.parser.parse
 
 import scala.language.{higherKinds, implicitConversions}
 //--------------------------------------------------------------------------
@@ -46,8 +47,8 @@ object GreeterServiceWrapped {
   }
 
   object GreeterServiceOutput {
-    implicit val encodeTestPayload: Encoder[GreeterServiceInput] = deriveEncoder
-    implicit val decodeTestPayload: Decoder[GreeterServiceInput] = deriveDecoder
+    implicit val encodeTestPayload: Encoder[GreeterServiceOutput] = deriveEncoder
+    implicit val decodeTestPayload: Decoder[GreeterServiceOutput] = deriveDecoder
   }
 
   trait GreeterServiceDispatcherPacking[R[_]] extends GreeterService[R] with WithResult[R] {
@@ -97,4 +98,21 @@ object GreeterServiceWrapped {
 
   }
 
+  type GreeterServiceStringMarshaller = TransportMarshallers[String, GreeterServiceInput, String, GreeterServiceOutput]
+
+  class GreeterServiceStringMarshallerCirceImpl extends GreeterServiceStringMarshaller {
+    import io.circe.parser._
+    import io.circe.syntax._
+
+    override val requestUnmarshaller: Unmarshaller[String, GreeterServiceInput] = (v: String) => {
+      parse(v).flatMap(_.as[GreeterServiceInput]).right.get
+    }
+
+    override val responseUnmarshaller: Unmarshaller[String, GreeterServiceOutput] = (v: String) => {
+      parse(v).flatMap(_.as[GreeterServiceOutput]).right.get
+    }
+
+    override val requestMarshaller: Marshaller[GreeterServiceInput, String] = (v: GreeterServiceInput) => v.asJson.noSpaces
+    override val responseMarshaller: Marshaller[GreeterServiceOutput, String] = (v: GreeterServiceOutput) => v.asJson.noSpaces
+  }
 }
