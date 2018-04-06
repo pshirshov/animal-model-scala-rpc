@@ -86,40 +86,29 @@ trait WithResult[R[_]] extends WithResultType[R] {
   protected def _Result[T](value: => T): R[T] = _ServiceResult.pure(value)
 }
 
-trait Marshaller[Value, Marshalled] {
-  def encode(v: Value): Marshalled
-}
-
-
-trait UnsafeMarshaller[Value, Marshalled] {
-  def encodeUnsafe(v: AnyRef): Option[Marshalled]
-}
-
-
-trait Unmarshaller[Marshalled, Value] {
-  def decode(v: Marshalled): Value
-}
-
-trait FullUnmarshaller[Marshalled, Value] extends Unmarshaller[Marshalled, Value] with UnsafeUnmarshaller[Marshalled, Value] {
-}
-
-trait FullMarshaller[Value, Marshalled] extends Marshaller[Value, Marshalled] with UnsafeMarshaller[Value, Marshalled] {
-}
-
-trait UnsafeUnmarshaller[Marshalled, Value] {
-  def decodeUnsafe(v: Marshalled): Option[Value]
-}
+//trait Marshaller[Value, Marshalled] {
+//  def encode(v: Value): Marshalled
+//}
+//
+//trait Unmarshaller[Marshalled, Value] {
+//  def decode(v: Marshalled): Value
+//}
 
 trait Transport[RequestWire, ResponseWire] {
   def send(v: RequestWire): ResponseWire
 }
 
 trait TransportMarshallers[RequestWire, Request, ResponseWire, Response] {
-  val requestUnmarshaller: FullUnmarshaller[RequestWire, Request]
-  val requestMarshaller: FullMarshaller[Request, RequestWire]
+  def decodeRequest(requestWire: RequestWire): Request
+  def encodeRequest(request: Request): RequestWire
 
-  val responseMarshaller: FullMarshaller[Response, ResponseWire]
-  val responseUnmarshaller: FullUnmarshaller[ResponseWire, Response]
+  def decodeResponse(responseWire: ResponseWire): Response
+  def encodeResponse(response: Response): ResponseWire
+//  val requestMarshaller: Marshaller[Request, RequestWire]
+//  val requestUnmarshaller: Unmarshaller[RequestWire, Request]
+//
+//  val responseMarshaller: Marshaller[Response, ResponseWire]
+//  val responseUnmarshaller: Unmarshaller[ResponseWire, Response]
 }
 
 trait Dispatcher[In, Out, R[_]] extends WithResultType[R] {
@@ -130,14 +119,16 @@ trait Receiver[In, Out, R[_]] extends WithResultType[R] {
   def receive(input: In): Result[Out]
 }
 
+case class Muxed(v: AnyRef, service: ServiceId)
+case class Demuxed(v: AnyRef, service: ServiceId)
+
+
+case class ServiceId(value: String) extends AnyVal
+
 trait UnsafeDispatcher[In, Out, R[_]] extends WithResultType[R] {
-  def dispatchUnsafe(input: AnyRef): Option[Result[AnyRef]]
+  def identifier: ServiceId
+  def dispatchUnsafe(input: Muxed): Option[Result[Muxed]]
 }
-
-trait UnsafeReceiver[In, Out, R[_]] extends WithResultType[R] {
-  def receiveUnsafe(input: AnyRef): Option[Result[AnyRef]]
-}
-
 
 trait TransportException
 
@@ -156,9 +147,9 @@ class ServerReceiver[RequestWire, Request, ResponseWire, Response, R[_] : Servic
 
   def receive(request: RequestWire): R[ResponseWire] = {
     import ServiceResult._
-    _Result(bindings.requestUnmarshaller.decode(request))
+    _Result(bindings.decodeRequest(request))
       .flatMap(dispatcher.dispatch)
-      .map(bindings.responseMarshaller.encode)
+      .map(bindings.encodeResponse)
   }
 }
 
@@ -171,14 +162,15 @@ class ClientDispatcher[RequestWire, Request, ResponseWire, Response, R[_] : Serv
 
   def dispatch(input: Request): Result[Response] = {
     import ServiceResult._
-    _Result(bindings.requestMarshaller.encode(input))
+    _Result(bindings.encodeRequest(input))
       .flatMap(transport.send)
-      .map(bindings.responseUnmarshaller.decode)
+      .map(bindings.decodeResponse)
   }
 }
 
-class ServerMultiplexor[R[_]](dispatchers: List[UnsafeDispatcher[_, _, R]]) extends Dispatcher[AnyRef, AnyRef, R] {
-  override def dispatch(input: AnyRef): Result[AnyRef] = {
+
+class ServerMultiplexor[R[_]](dispatchers: List[UnsafeDispatcher[_, _, R]]) extends Dispatcher[Muxed, Muxed, R] {
+  override def dispatch(input: Muxed): Result[Muxed] = {
     dispatchers.foreach {
       d =>
         d.dispatchUnsafe(input) match {
