@@ -15,13 +15,17 @@ import scala.util.Try
 // setup context and use
 
 class NetworkSimulator[I, O, R[_]](server: Receiver[I, O, R]) extends Transport[I, R[O]] {
-  def send(v: I): R[O] = server.receive(v)
+  def send(v: I): R[O] = {
+    val received =  server.receive(v)
+    println(s"NetworkSimulator: value on wire: $v")
+    received
+  }
 }
 
-class PseudoNetwork[I, O, R[_], RT[_]](transport: Transport[I, R[O]])(implicit converter: ServiceResultTransformer[R, RT]) extends Transport[I, RT[O]] {
+class TransformingNetworkSimulator[I, O, R[_], RT[_]](transport: Transport[I, R[O]])(implicit converter: ServiceResultTransformer[R, RT]) extends Transport[I, RT[O]] {
   def send(v: I): RT[O] = {
     val sent = transport.send(v)
-    //println(s"on wire: $v")
+    println(s"TransformingNetworkSimulator: value on wire: $v")
     converter.transform(sent)
   }
 }
@@ -31,9 +35,7 @@ object Test {
 
   import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped._
 
-  type M = TransportMarshallers[String, Muxed, String, Muxed]
-
-  class MImpl extends M {
+  class MImpl extends TransportMarshallers[String, Muxed, Muxed, String] {
     implicit val encodePolymorphic: Encoder[Muxed] = Encoder.instance { c =>
       c.v match {
         case v: GreeterServiceWrapped.GreeterServiceInput =>
@@ -101,8 +103,8 @@ object Test {
     val list: List[UnsafeDispatcher[_, _, R]] = List(greeterDispatcher) //, calculatorDispatcher)
     val multiplexor = new ServerMultiplexor[R](list)
 
-
-    val marshalling: TransportMarshallers[String, Muxed, String, Muxed] = new MImpl()
+    // all the type annotations below are optional, infering works
+    val marshalling: TransportMarshallers[String, Muxed, Muxed, String] = new MImpl()
     val server = new ServerReceiver(multiplexor, marshalling)
 
     println("Testing direct RPC call...")
@@ -111,7 +113,7 @@ object Test {
 
     val network: NetworkSimulator[String, String, R] = new NetworkSimulator(server)
 
-    val clientDispatcher: ClientDispatcher[String, Muxed, String, Muxed, R] = new ClientDispatcher(network, marshalling)
+    val clientDispatcher: ClientDispatcher[String, Muxed, Muxed, String, R] = new ClientDispatcher(network, marshalling)
     val client = new GreeterServiceWrapped.GreeterServiceDispatcherPacking.Impl(new GreeterServiceWrapped.GreeterServiceSafeToUnsafeBridge(clientDispatcher))
 
     println()
@@ -121,7 +123,7 @@ object Test {
   }
 
   def main(args: Array[String]): Unit = {
-    implicit val ec = ExecutionContext.Implicits.global
+    implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
     new SimpleDemo[Option]
     new SimpleDemo[Try]
     new SimpleDemo[Future]

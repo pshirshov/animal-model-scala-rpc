@@ -86,29 +86,16 @@ trait WithResult[R[_]] extends WithResultType[R] {
   protected def _Result[T](value: => T): R[T] = _ServiceResult.pure(value)
 }
 
-//trait Marshaller[Value, Marshalled] {
-//  def encode(v: Value): Marshalled
-//}
-//
-//trait Unmarshaller[Marshalled, Value] {
-//  def decode(v: Marshalled): Value
-//}
-
 trait Transport[RequestWire, ResponseWire] {
   def send(v: RequestWire): ResponseWire
 }
 
-trait TransportMarshallers[RequestWire, Request, ResponseWire, Response] {
+trait TransportMarshallers[RequestWire, Request, Response, ResponseWire] {
   def decodeRequest(requestWire: RequestWire): Request
   def encodeRequest(request: Request): RequestWire
 
   def decodeResponse(responseWire: ResponseWire): Response
   def encodeResponse(response: Response): ResponseWire
-//  val requestMarshaller: Marshaller[Request, RequestWire]
-//  val requestUnmarshaller: Unmarshaller[RequestWire, Request]
-//
-//  val responseMarshaller: Marshaller[Response, ResponseWire]
-//  val responseUnmarshaller: Unmarshaller[ResponseWire, Response]
 }
 
 trait Dispatcher[In, Out, R[_]] extends WithResultType[R] {
@@ -138,10 +125,10 @@ class MultiplexingException(message: String, val v: Any) extends RuntimeExceptio
 
 //--------------------------------------------------------------------------
 // Runtime: opinionated part
-class ServerReceiver[RequestWire, Request, ResponseWire, Response, R[_] : ServiceResult]
+class ServerReceiver[RequestWire, Request, Response, ResponseWire, R[_] : ServiceResult]
 (
   dispatcher: Dispatcher[Request, Response, R]
-  , bindings: TransportMarshallers[RequestWire, Request, ResponseWire, Response]
+  , bindings: TransportMarshallers[RequestWire, Request, Response, ResponseWire]
 ) extends Receiver[RequestWire, ResponseWire, R] with WithResult[R] {
   override protected def _ServiceResult: ServiceResult[R] = implicitly
 
@@ -153,10 +140,10 @@ class ServerReceiver[RequestWire, Request, ResponseWire, Response, R[_] : Servic
   }
 }
 
-class ClientDispatcher[RequestWire, Request, ResponseWire, Response, R[_] : ServiceResult]
+class ClientDispatcher[RequestWire, Request, Response, ResponseWire, R[_] : ServiceResult]
 (
   transport: Transport[RequestWire, R[ResponseWire]]
-  , bindings: TransportMarshallers[RequestWire, Request, ResponseWire, Response]
+  , bindings: TransportMarshallers[RequestWire, Request, Response, ResponseWire]
 ) extends Dispatcher[Request, Response, R] with WithResult[R] {
   override protected def _ServiceResult: ServiceResult[R] = implicitly
 
