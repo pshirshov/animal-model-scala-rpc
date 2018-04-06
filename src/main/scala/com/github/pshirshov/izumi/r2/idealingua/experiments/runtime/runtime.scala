@@ -88,11 +88,25 @@ trait WithResult[R[_]] extends WithResultType[R] {
 
 trait Marshaller[Value, Marshalled] {
   def encode(v: Value): Marshalled
+}
+
+
+trait UnsafeMarshaller[Value, Marshalled] {
   def encodeUnsafe(v: AnyRef): Option[Marshalled]
 }
 
+
 trait Unmarshaller[Marshalled, Value] {
   def decode(v: Marshalled): Value
+}
+
+trait FullUnmarshaller[Marshalled, Value] extends Unmarshaller[Marshalled, Value] with UnsafeUnmarshaller[Marshalled, Value] {
+}
+
+trait FullMarshaller[Value, Marshalled] extends Marshaller[Value, Marshalled] with UnsafeMarshaller[Value, Marshalled] {
+}
+
+trait UnsafeUnmarshaller[Marshalled, Value] {
   def decodeUnsafe(v: Marshalled): Option[Value]
 }
 
@@ -101,11 +115,11 @@ trait Transport[RequestWire, ResponseWire] {
 }
 
 trait TransportMarshallers[RequestWire, Request, ResponseWire, Response] {
-  val requestUnmarshaller: Unmarshaller[RequestWire, Request]
-  val requestMarshaller: Marshaller[Request, RequestWire]
+  val requestUnmarshaller: FullUnmarshaller[RequestWire, Request]
+  val requestMarshaller: FullMarshaller[Request, RequestWire]
 
-  val responseMarshaller: Marshaller[Response, ResponseWire]
-  val responseUnmarshaller: Unmarshaller[ResponseWire, Response]
+  val responseMarshaller: FullMarshaller[Response, ResponseWire]
+  val responseUnmarshaller: FullUnmarshaller[ResponseWire, Response]
 }
 
 trait Dispatcher[In, Out, R[_]] extends WithResultType[R] {

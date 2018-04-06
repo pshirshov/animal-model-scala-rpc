@@ -9,6 +9,7 @@ import scala.collection.immutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.{higherKinds, implicitConversions}
 import scala.util.Try
+import io.circe._
 
 
 
@@ -35,18 +36,16 @@ class PseudoNetwork[I, O, R[_], RT[_]](transport: Transport[I, R[O]])(implicit c
 object Test {
   import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped._
 
-  class FailingMarshallers extends GreeterServiceWrapped.GreeterServiceStringMarshaller {
-    override val requestUnmarshaller: Unmarshaller[String, GreeterServiceInput] = (v: String) => ???
-    override val requestMarshaller: Marshaller[GreeterServiceInput, String] = (v: GreeterServiceInput) => ???
-    override val responseMarshaller: Marshaller[GreeterServiceOutput, String] = (v: GreeterServiceOutput) => ???
-    override val responseUnmarshaller: Unmarshaller[String, GreeterServiceOutput] = (v: String) => ???
-  }
+//  class FailingMarshallers extends GreeterServiceWrapped.GreeterServiceStringMarshaller {
+//    override val requestUnmarshaller: Unmarshaller[String, GreeterServiceInput] = (v: String) => ???
+//    override val requestMarshaller: Marshaller[GreeterServiceInput, String] = (v: GreeterServiceInput) => ???
+//    override val responseMarshaller: Marshaller[GreeterServiceOutput, String] = (v: GreeterServiceOutput) => ???
+//    override val responseUnmarshaller: Unmarshaller[String, GreeterServiceOutput] = (v: String) => ???
+//  }
 
-  type M = TransportMarshallers[String, AnyRef, String, AnyRef]
-  class SimpleDemo[R[_] : ServiceResult]
-  (
-    marshalling: M
-  ) {
+  type M = TransportMarshallers[Json, AnyRef, Json, AnyRef]
+  class SimpleDemo[R[_] : ServiceResult] {
+
     val greeterService = new AbstractGreeterServer.Impl[R]
     val calculatorService = new AbstractCalculatorServer.Impl[R]
     val greeterDispatcher = new GreeterServiceWrapped.GreeterServiceDispatcherUnpacking.Impl(greeterService)
@@ -54,6 +53,19 @@ object Test {
 
     val list: List[UnsafeDispatcher[_, _, R]] = List(greeterDispatcher) //, calculatorDispatcher)
     val multiplexor = new ServerMultiplexor[R](list)
+
+    val m: M = new TransportMarshallers[Json, AnyRef, Json, AnyRef] {
+      override val requestUnmarshaller: FullUnmarshaller[Json, AnyRef] = new FullUnmarshaller[Json, AnyRef] {
+        override def decodeUnsafe(v: Json): Option[AnyRef] = lis
+
+        override def decode(v: Json): AnyRef = ???
+      }
+      override val requestMarshaller: FullMarshaller[AnyRef, Json] = ???
+      override val responseMarshaller: FullMarshaller[AnyRef, Json] = ???
+      override val responseUnmarshaller: FullUnmarshaller[Json, AnyRef] = ???
+    }
+
+
     val server = new ServerReceiver(multiplexor, marshalling)
 
     val appTransport = new TrivialAppTransport(server)
@@ -91,7 +103,7 @@ object Test {
 
 
   def main(args: Array[String]): Unit = {
-    val m: M = ???
-    testSimple(m)
+
+    testSimple()
   }
 }

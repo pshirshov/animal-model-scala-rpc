@@ -129,16 +129,16 @@ object GreeterServiceWrapped {
 
   }
 
-  type GreeterServiceStringMarshaller = TransportMarshallers[String, GreeterServiceInput, String, GreeterServiceOutput]
+  type GreeterServiceStringMarshaller = TransportMarshallers[Json, GreeterServiceInput, Json, GreeterServiceOutput]
 
   class GreeterServiceStringMarshallerCirceImpl extends GreeterServiceStringMarshaller {
 
     import io.circe.parser._
     import io.circe.syntax._
 
-    override val requestUnmarshaller: Unmarshaller[String, GreeterServiceInput] = new Unmarshaller[String, GreeterServiceInput] {
-      override def decode(v: String): GreeterServiceInput = {
-        parse(v).flatMap(_.as[GreeterServiceInput]) match {
+    override val requestUnmarshaller: FullUnmarshaller[Json, GreeterServiceInput] = new FullUnmarshaller[Json, GreeterServiceInput] {
+      override def decode(v: Json): GreeterServiceInput = {
+        v.as[GreeterServiceInput] match {
           case Right(value) =>
             value
           case Left(problem) =>
@@ -146,8 +146,8 @@ object GreeterServiceWrapped {
         }
       }
 
-      override def decodeUnsafe(v: String): Option[GreeterServiceInput] = {
-        parse(v).flatMap(_.as[GreeterServiceInput]) match {
+      override def decodeUnsafe(v: Json): Option[GreeterServiceInput] = {
+        v.as[GreeterServiceInput] match {
           case Right(value) =>
             Some(value)
           case Left(problem) =>
@@ -156,9 +156,9 @@ object GreeterServiceWrapped {
       }
     }
 
-    override val responseUnmarshaller: Unmarshaller[String, GreeterServiceOutput] = new Unmarshaller[String, GreeterServiceOutput] {
-      override def decode(v: String): GreeterServiceOutput = {
-        parse(v).flatMap(_.as[GreeterServiceOutput]) match {
+    override val responseUnmarshaller: FullUnmarshaller[Json, GreeterServiceOutput] = new FullUnmarshaller[Json, GreeterServiceOutput] {
+      override def decode(v: Json): GreeterServiceOutput = {
+        v.as[GreeterServiceOutput] match {
           case Right(value) =>
             value
           case Left(problem) =>
@@ -166,8 +166,8 @@ object GreeterServiceWrapped {
         }
       }
 
-      override def decodeUnsafe(v: String): Option[GreeterServiceOutput] = {
-        parse(v).flatMap(_.as[GreeterServiceOutput]) match {
+      override def decodeUnsafe(v: Json): Option[GreeterServiceOutput] = {
+        v.as[GreeterServiceOutput] match {
           case Right(value) =>
             Some(value)
           case Left(problem) =>
@@ -176,12 +176,12 @@ object GreeterServiceWrapped {
       }
     }
 
-    override val requestMarshaller: Marshaller[GreeterServiceInput, String] = new Marshaller[GreeterServiceInput, String] {
-      override def encode(v: GreeterServiceInput): String = {
-        v.asJson.noSpaces
+    override val requestMarshaller: FullMarshaller[GreeterServiceInput, Json] = new FullMarshaller[GreeterServiceInput, Json] {
+      override def encode(v: GreeterServiceInput): Json = {
+        v.asJson
       }
 
-      override def encodeUnsafe(v: AnyRef): Option[String] = {
+      override def encodeUnsafe(v: AnyRef): Option[Json] = {
         v match {
           case i: GreeterServiceInput =>
             Some(encode(i))
@@ -191,12 +191,12 @@ object GreeterServiceWrapped {
       }
     }
 
-    override val responseMarshaller: Marshaller[GreeterServiceOutput, String] = new Marshaller[GreeterServiceOutput, String] {
-      override def encode(v: GreeterServiceOutput): String = {
-        v.asJson.noSpaces
+    override val responseMarshaller: FullMarshaller[GreeterServiceOutput, Json] = new FullMarshaller[GreeterServiceOutput, Json] {
+      override def encode(v: GreeterServiceOutput): Json = {
+        v.asJson
       }
 
-      override def encodeUnsafe(v: AnyRef): Option[String] = {
+      override def encodeUnsafe(v: AnyRef): Option[Json] = {
         v match {
           case i: GreeterServiceOutput =>
             Some(encode(i))
