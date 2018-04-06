@@ -1,5 +1,8 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 
+import com.github.pshirshov.izumi.r2.idealingua
+import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
+import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.CalculatorServiceWrapped.{SafeToUnsafeBridge, client}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.OpinionatedMuxedCodec.DirectedPacket
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.MuxingCodecProvider
@@ -20,7 +23,7 @@ trait GreeterServiceWrapped[R[_]] extends WithResultType[R] {
   def greet(input: GreetInput): Result[GreetOutput]
 }
 
-object GreeterServiceWrapped extends WrappedServiceDefinition with CirceWrappedServiceDefinition {
+object GreeterServiceWrapped extends IdentifiableServiceDefinition with WrappedServiceDefinition with CirceWrappedServiceDefinition {
 
   sealed trait GreeterServiceInput
 
@@ -30,6 +33,30 @@ object GreeterServiceWrapped extends WrappedServiceDefinition with CirceWrappedS
 
   case class GreetOutput(value: String) extends GreeterServiceOutput
 
+
+  override type Input = GreeterServiceInput
+  override type Output = GreeterServiceOutput
+
+  override type Service[R[_]] = GreeterService[R]
+
+
+  override def client[R[_] : ServiceResult](dispatcher: Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]): GreeterService[R] = {
+    new generated.GreeterServiceWrapped.PackingDispatcher.Impl[R](dispatcher)
+  }
+
+
+  override def server[R[_] : ServiceResult](service: GreeterService[R]): Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] = {
+    new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R](service)
+  }
+
+
+  override def serverUnsafe[R[_] : ServiceResult](service: GreeterService[R]): UnsafeDispatcher[GreeterServiceInput, GreeterServiceOutput, R] = {
+    new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R](service)
+  }
+
+  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed, Muxed, R]): GreeterService[R] = {
+    client(new SafeToUnsafeBridge[R](dispatcher))
+  }
 
   object GreetInput {
     implicit val encode: Encoder[GreetInput] = deriveEncoder
@@ -53,7 +80,7 @@ object GreeterServiceWrapped extends WrappedServiceDefinition with CirceWrappedS
 
   val serviceId =  ServiceId("GreeterService")
 
-  trait GreeterServiceDispatcherPacking[R[_]]
+  trait PackingDispatcher[R[_]]
     extends GreeterService[R]
       with WithResult[R] {
     def dispatcher: Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]
@@ -70,7 +97,7 @@ object GreeterServiceWrapped extends WrappedServiceDefinition with CirceWrappedS
     }
   }
 
-  class GreeterServiceSafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed, Muxed, R]) extends Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] with WithResult[R] {
+  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed, Muxed, R]) extends Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] with WithResult[R] {
     override protected def _ServiceResult: ServiceResult[R] = implicitly
 
     import ServiceResult._
@@ -85,15 +112,15 @@ object GreeterServiceWrapped extends WrappedServiceDefinition with CirceWrappedS
     }
   }
 
-  object GreeterServiceDispatcherPacking {
+  object PackingDispatcher {
 
-    class Impl[R[_] : ServiceResult](val dispatcher: Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]) extends GreeterServiceDispatcherPacking[R] {
+    class Impl[R[_] : ServiceResult](val dispatcher: Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]) extends PackingDispatcher[R] {
       override protected def _ServiceResult: ServiceResult[R] = implicitly
     }
 
   }
 
-  trait GreeterServiceDispatcherUnpacking[R[_]]
+  trait UnpackingDispatcher[R[_]]
     extends GreeterServiceWrapped[R]
       with Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]
       with UnsafeDispatcher[GreeterServiceInput, GreeterServiceOutput, R]
@@ -125,9 +152,9 @@ object GreeterServiceWrapped extends WrappedServiceDefinition with CirceWrappedS
     }
   }
 
-  object GreeterServiceDispatcherUnpacking {
+  object UnpackingDispatcher {
 
-    class Impl[R[_] : ServiceResult](val service: GreeterService[R]) extends GreeterServiceDispatcherUnpacking[R] {
+    class Impl[R[_] : ServiceResult](val service: GreeterService[R]) extends UnpackingDispatcher[R] {
       override protected def _ServiceResult: ServiceResult[R] = implicitly
     }
 

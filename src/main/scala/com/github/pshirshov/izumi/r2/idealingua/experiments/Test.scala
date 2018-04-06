@@ -77,7 +77,7 @@ object TestMul {
 
     val marshalling = new DirectMarshallerImpl()
     val service = new AbstractGreeterServer.Impl[R]
-    val serverDispatcher = new GreeterServiceWrapped.GreeterServiceDispatcherUnpacking.Impl(service)
+    val serverDispatcher = GreeterServiceWrapped.server(service)
 
     val server = new ServerReceiver(serverDispatcher, marshalling)
 
@@ -88,7 +88,7 @@ object TestMul {
     val network = new NetworkSimulator(server)
 
     val clientDispatcher = new ClientDispatcher(network, marshalling)
-    val greeterClient = new GreeterServiceWrapped.GreeterServiceDispatcherPacking.Impl(clientDispatcher)
+    val greeterClient = GreeterServiceWrapped.client(clientDispatcher)
     println()
     println("Testing client RPC calls...")
     println(greeterClient.greet("Best", "Client"))
@@ -102,16 +102,16 @@ object TestMul {
 
     val greeterService = new AbstractGreeterServer.Impl[R]
     val calculatorService = new AbstractCalculatorServer.Impl[R]
-    val greeterDispatcher = new GreeterServiceWrapped.GreeterServiceDispatcherUnpacking.Impl(greeterService)
-    val calculatorDispatcher = new CalculatorServiceWrapped.CalculatorServiceDispatcherUnpacking.Impl(calculatorService)
+    val greeterDispatcher = GreeterServiceWrapped.serverUnsafe(greeterService)
+    val calculatorDispatcher = CalculatorServiceWrapped.serverUnsafe(calculatorService)
 
     val list: List[UnsafeDispatcher[_, _, R]] = List(greeterDispatcher, calculatorDispatcher)
-    val multiplexor = new ServerMultiplexor[R](list)
+    val muxer = new ServerMultiplexor[R](list)
 
     // all the type annotations below are optional, infering works
     val codecs = List(GreeterServiceWrapped, CalculatorServiceWrapped)
     val marshalling: TransportMarshallers[String, Muxed, Muxed, String] = new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
-    val server = new ServerReceiver(multiplexor, marshalling)
+    val server = new ServerReceiver(muxer, marshalling)
 
     println("Testing direct RPC call...")
     val request = marshalling.encodeRequest(Muxed(GreeterServiceWrapped.GreetInput("John", "Doe"), GreeterServiceWrapped.serviceId))
@@ -120,8 +120,8 @@ object TestMul {
     val network: NetworkSimulator[String, String, R] = new NetworkSimulator(server)
 
     val clientDispatcher: ClientDispatcher[String, Muxed, Muxed, String, R] = new ClientDispatcher(network, marshalling)
-    val greeterClient = new GreeterServiceWrapped.GreeterServiceDispatcherPacking.Impl(new GreeterServiceWrapped.GreeterServiceSafeToUnsafeBridge(clientDispatcher))
-    val calculatorClient = new CalculatorServiceWrapped.CalculatorServiceDispatcherPacking.Impl(new CalculatorServiceWrapped.CalculatorServiceSafeToUnsafeBridge(clientDispatcher))
+    val greeterClient = GreeterServiceWrapped.clientUnsafe(clientDispatcher)
+    val calculatorClient = CalculatorServiceWrapped.clientUnsafe(clientDispatcher)
 
     println()
     println("Testing client RPC calls...")
@@ -139,16 +139,16 @@ object TestMul {
 
     val greeterService = new AbstractGreeterServer.Impl[R]
     val calculatorService = new AbstractCalculatorServer.Impl[R]
-    val greeterDispatcher = new GreeterServiceWrapped.GreeterServiceDispatcherUnpacking.Impl(greeterService)
-    val calculatorDispatcher = new CalculatorServiceWrapped.CalculatorServiceDispatcherUnpacking.Impl(calculatorService)
+    val greeterDispatcher = GreeterServiceWrapped.serverUnsafe(greeterService)
+    val calculatorDispatcher = CalculatorServiceWrapped.serverUnsafe(calculatorService)
 
     val list: List[UnsafeDispatcher[_, _, R]] = List(greeterDispatcher, calculatorDispatcher)
-    val multiplexor = new ServerMultiplexor[R](list)
+    val muxer = new ServerMultiplexor[R](list)
 
     // all the type annotations below are optional, infering works
     val codecs = List(GreeterServiceWrapped, CalculatorServiceWrapped)
     val marshalling: TransportMarshallers[String, Muxed, Muxed, String] = new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
-    val server = new ServerReceiver(multiplexor, marshalling)
+    val server = new ServerReceiver(muxer, marshalling)
 
     println("Testing direct RPC call...")
     val request = marshalling.encodeRequest(Muxed(GreeterServiceWrapped.GreetInput("John", "Doe"), GreeterServiceWrapped.serviceId))
@@ -163,8 +163,8 @@ object TestMul {
     }
 
     val clientDispatcher: ClientDispatcher[String, Muxed, Muxed, String, R] = new ClientDispatcher(transport, marshalling)
-    val greeterClient = new GreeterServiceWrapped.GreeterServiceDispatcherPacking.Impl(new GreeterServiceWrapped.GreeterServiceSafeToUnsafeBridge(clientDispatcher))
-    val calculatorClient = new CalculatorServiceWrapped.CalculatorServiceDispatcherPacking.Impl(new CalculatorServiceWrapped.CalculatorServiceSafeToUnsafeBridge(clientDispatcher))
+    val greeterClient = GreeterServiceWrapped.clientUnsafe(clientDispatcher)
+    val calculatorClient = CalculatorServiceWrapped.clientUnsafe(clientDispatcher)
 
     println()
     println("Testing client RPC calls...")

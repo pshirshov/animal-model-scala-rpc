@@ -1,6 +1,9 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 
-import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped.CodecProvider
+import com.github.pshirshov.izumi.r2.idealingua
+import com.github.pshirshov.izumi.r2.idealingua.experiments
+import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
+import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped.{CodecProvider, GreeterServiceInput, GreeterServiceOutput}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.OpinionatedMuxedCodec.DirectedPacket
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.MuxingCodecProvider
@@ -21,13 +24,37 @@ trait CalculatorServiceWrapped[R[_]] extends WithResultType[R] {
   def sum(input: SumInput): Result[SumOutput]
 }
 
-object CalculatorServiceWrapped extends WrappedServiceDefinition with CirceWrappedServiceDefinition {
+object CalculatorServiceWrapped extends IdentifiableServiceDefinition with WrappedServiceDefinition with CirceWrappedServiceDefinition {
 
   sealed trait CalculatorServiceInput
 
   case class SumInput(a: Int, b: Int) extends CalculatorServiceInput
 
   sealed trait CalculatorServiceOutput
+
+  override type Input = CalculatorServiceInput
+  override type Output = CalculatorServiceOutput
+
+
+  override type Service[R[_]] = CalculatorService[R]
+
+  override def client[R[_] : ServiceResult](dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]): CalculatorService[R] = {
+    new generated.CalculatorServiceWrapped.PackingDispatcher.Impl[R](dispatcher)
+  }
+
+
+  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed, Muxed, R]): CalculatorService[R] = {
+    client(new SafeToUnsafeBridge[R](dispatcher))
+  }
+
+  override def server[R[_] : ServiceResult](service: CalculatorService[R]): Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] = {
+    new idealingua.experiments.generated.CalculatorServiceWrapped.UnpackingDispatcher.Impl[R](service)
+  }
+
+
+  override def serverUnsafe[R[_] : ServiceResult](service: CalculatorService[R]): UnsafeDispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] = {
+    new idealingua.experiments.generated.CalculatorServiceWrapped.UnpackingDispatcher.Impl[R](service)
+  }
 
   case class SumOutput(value: Int) extends CalculatorServiceOutput
 
@@ -53,7 +80,7 @@ object CalculatorServiceWrapped extends WrappedServiceDefinition with CirceWrapp
 
   val serviceId =  ServiceId("CalculatorService")
 
-  trait CalculatorServiceDispatcherPacking[R[_]]
+  trait PackingDispatcher[R[_]]
     extends CalculatorService[R]
       with WithResult[R] {
     def dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
@@ -70,7 +97,7 @@ object CalculatorServiceWrapped extends WrappedServiceDefinition with CirceWrapp
     }
   }
 
-  class CalculatorServiceSafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed, Muxed, R]) extends Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with WithResult[R] {
+  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed, Muxed, R]) extends Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with WithResult[R] {
     override protected def _ServiceResult: ServiceResult[R] = implicitly
 
     import ServiceResult._
@@ -85,15 +112,15 @@ object CalculatorServiceWrapped extends WrappedServiceDefinition with CirceWrapp
     }
   }
 
-  object CalculatorServiceDispatcherPacking {
+  object PackingDispatcher {
 
-    class Impl[R[_] : ServiceResult](val dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]) extends CalculatorServiceDispatcherPacking[R] {
+    class Impl[R[_] : ServiceResult](val dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]) extends PackingDispatcher[R] {
       override protected def _ServiceResult: ServiceResult[R] = implicitly
     }
 
   }
 
-  trait CalculatorServiceDispatcherUnpacking[R[_]]
+  trait UnpackingDispatcher[R[_]]
     extends CalculatorServiceWrapped[R]
       with Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
       with UnsafeDispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
@@ -125,9 +152,9 @@ object CalculatorServiceWrapped extends WrappedServiceDefinition with CirceWrapp
     }
   }
 
-  object CalculatorServiceDispatcherUnpacking {
+  object UnpackingDispatcher {
 
-    class Impl[R[_] : ServiceResult](val service: CalculatorService[R]) extends CalculatorServiceDispatcherUnpacking[R] {
+    class Impl[R[_] : ServiceResult](val service: CalculatorService[R]) extends UnpackingDispatcher[R] {
       override protected def _ServiceResult: ServiceResult[R] = implicitly
     }
 

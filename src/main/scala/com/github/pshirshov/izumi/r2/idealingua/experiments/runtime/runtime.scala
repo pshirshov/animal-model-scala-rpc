@@ -1,6 +1,7 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.runtime
 
 
+import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped.{GreeterServiceInput, GreeterServiceOutput}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.MuxingCodecProvider
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -126,12 +127,28 @@ class UnparseableDataException(message: String) extends RuntimeException(message
 class TypeMismatchException(message: String, val v: Any) extends RuntimeException(message) with TransportException
 class MultiplexingException(message: String, val v: Any) extends RuntimeException(message) with TransportException
 
-trait WrappedServiceDefinition {
+trait IdentifiableServiceDefinition {
   def serviceId: ServiceId
+
 }
 
+trait WrappedServiceDefinition {
+  this: IdentifiableServiceDefinition =>
+
+  type Input
+  type Output
+  type Service[_[_]]
+
+  def client[R[_] : ServiceResult](dispatcher: Dispatcher[Input, Output, R]): Service[R]
+  def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed, Muxed, R]): Service[R]
+  def server[R[_] : ServiceResult](service: Service[R]): Dispatcher[Input, Output, R]
+  def serverUnsafe[R[_] : ServiceResult](service: Service[R]): UnsafeDispatcher[Input, Output, R]
+}
+
+
+
 trait CirceWrappedServiceDefinition {
-  this: WrappedServiceDefinition =>
+  this: IdentifiableServiceDefinition =>
   def codecProvider: MuxingCodecProvider
 }
 
