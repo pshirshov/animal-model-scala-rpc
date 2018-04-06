@@ -1,7 +1,9 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.OpinionatedMuxedCodec.DirectedPacket
+import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped.CodecProvider
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.OpinionatedMuxedCodec.DirectedPacket
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.MuxingCodecProvider
 import io.circe._
 import io.circe.generic.semiauto._
 
@@ -19,7 +21,7 @@ trait CalculatorServiceWrapped[R[_]] extends WithResultType[R] {
   def sum(input: SumInput): Result[SumOutput]
 }
 
-object CalculatorServiceWrapped {
+object CalculatorServiceWrapped extends WrappedServiceDefinition with CirceWrappedServiceDefinition {
 
   sealed trait CalculatorServiceInput
 
@@ -91,33 +93,6 @@ object CalculatorServiceWrapped {
 
   }
 
-
-
-  object CodecProvider extends MuxingCodecProvider {
-    import io.circe._
-    import io.circe.syntax._
-
-    val encoders: List[PartialFunction[AnyRef, Json]] = List(
-      {
-        case Muxed(v: CalculatorServiceWrapped.CalculatorServiceInput, _) =>
-          Map("Input" -> Map(CalculatorServiceWrapped.serviceId.value -> v.asJson)).asJson
-        case Muxed(v: CalculatorServiceWrapped.CalculatorServiceOutput, _) =>
-          Map("Output" -> Map(CalculatorServiceWrapped.serviceId.value -> v.asJson)).asJson
-      }
-    )
-
-
-    val decoders: List[PartialFunction[DirectedPacket, Decoder.Result[Muxed]]] = List(
-      {
-        case DirectedPacket("Input", CalculatorServiceWrapped.serviceId, packet) =>
-          packet.as[CalculatorServiceInput].map(v => Muxed(v, CalculatorServiceWrapped.serviceId))
-
-        case DirectedPacket("Output", CalculatorServiceWrapped.serviceId, packet) =>
-          packet.as[CalculatorServiceOutput].map(v => Muxed(v, CalculatorServiceWrapped.serviceId))
-      }
-    )
-  }
-
   trait CalculatorServiceDispatcherUnpacking[R[_]]
     extends CalculatorServiceWrapped[R]
       with Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
@@ -156,6 +131,33 @@ object CalculatorServiceWrapped {
       override protected def _ServiceResult: ServiceResult[R] = implicitly
     }
 
+  }
+
+  override def codecProvider: MuxingCodecProvider = CodecProvider
+
+  object CodecProvider extends MuxingCodecProvider {
+    import io.circe._
+    import io.circe.syntax._
+
+    val encoders: List[PartialFunction[AnyRef, Json]] = List(
+      {
+        case Muxed(v: CalculatorServiceWrapped.CalculatorServiceInput, _) =>
+          Map("Input" -> Map(CalculatorServiceWrapped.serviceId.value -> v.asJson)).asJson
+        case Muxed(v: CalculatorServiceWrapped.CalculatorServiceOutput, _) =>
+          Map("Output" -> Map(CalculatorServiceWrapped.serviceId.value -> v.asJson)).asJson
+      }
+    )
+
+
+    val decoders: List[PartialFunction[DirectedPacket, Decoder.Result[Muxed]]] = List(
+      {
+        case DirectedPacket("Input", CalculatorServiceWrapped.serviceId, packet) =>
+          packet.as[CalculatorServiceInput].map(v => Muxed(v, CalculatorServiceWrapped.serviceId))
+
+        case DirectedPacket("Output", CalculatorServiceWrapped.serviceId, packet) =>
+          packet.as[CalculatorServiceOutput].map(v => Muxed(v, CalculatorServiceWrapped.serviceId))
+      }
+    )
   }
 
 }

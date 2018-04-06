@@ -2,6 +2,7 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments
 
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.impls._
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{MuxedCodec, OpinionatedMuxedCodec}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.{TransportMarshallers, _}
 import io.circe.parser._
 import io.circe.syntax._
@@ -74,8 +75,8 @@ object Test {
     val multiplexor = new ServerMultiplexor[R](list)
 
     // all the type annotations below are optional, infering works
-    val codecs = List(GreeterServiceWrapped.CodecProvider, CalculatorServiceWrapped.CodecProvider)
-    val marshalling: TransportMarshallers[String, Muxed, Muxed, String] = new SimpleMarshallerImpl(new OpinionatedMuxedCodec(codecs))
+    val codecs = List(GreeterServiceWrapped, CalculatorServiceWrapped)
+    val marshalling: TransportMarshallers[String, Muxed, Muxed, String] = new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
     val server = new ServerReceiver(multiplexor, marshalling)
 
     println("Testing direct RPC call...")
