@@ -66,14 +66,14 @@ object GreeterServiceWrapped {
     }
   }
 
-  class GreeterServiceSafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[AnyRef, AnyRef, R]) extends Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] with WithResult[R] {
+  class GreeterServiceSafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed, Muxed, R]) extends Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] with WithResult[R] {
     override protected def _ServiceResult: ServiceResult[R] = implicitly
 
     import ServiceResult._
 
     override def dispatch(input: GreeterServiceInput): Result[GreeterServiceOutput] = {
-      dispatcher.dispatch(input).map {
-        case t: GreeterServiceOutput =>
+      dispatcher.dispatch(Muxed(input, serviceId) ).map {
+        case Muxed(t: GreeterServiceOutput, _) =>
           t
         case o =>
           throw new TypeMismatchException(s"Unexpected output in GreeterServiceSafeToUnsafeBridge.dispatch: $o", o)
@@ -131,84 +131,4 @@ object GreeterServiceWrapped {
     }
 
   }
-
-//  type GreeterServiceStringMarshaller = TransportMarshallers[Json, GreeterServiceInput, Json, GreeterServiceOutput]
-//
-//  class GreeterServiceStringMarshallerCirceImpl extends GreeterServiceStringMarshaller {
-//
-//    import io.circe.parser._
-//    import io.circe.syntax._
-//
-//    override val requestUnmarshaller: FullUnmarshaller[Json, GreeterServiceInput] = new FullUnmarshaller[Json, GreeterServiceInput] {
-//      override def decode(v: Json): GreeterServiceInput = {
-//        v.as[GreeterServiceInput] match {
-//          case Right(value) =>
-//            value
-//          case Left(problem) =>
-//            throw new UnparseableDataException(s"Cannot parse $problem into GreeterServiceInput")
-//        }
-//      }
-//
-//      override def decodeUnsafe(v: Json): Option[GreeterServiceInput] = {
-//        v.as[GreeterServiceInput] match {
-//          case Right(value) =>
-//            Some(value)
-//          case Left(problem) =>
-//            None
-//        }
-//      }
-//    }
-//
-//    override val responseUnmarshaller: FullUnmarshaller[Json, GreeterServiceOutput] = new FullUnmarshaller[Json, GreeterServiceOutput] {
-//      override def decode(v: Json): GreeterServiceOutput = {
-//        v.as[GreeterServiceOutput] match {
-//          case Right(value) =>
-//            value
-//          case Left(problem) =>
-//            throw new UnparseableDataException(s"Cannot parse $problem into GreeterServiceOutput")
-//        }
-//      }
-//
-//      override def decodeUnsafe(v: Json): Option[GreeterServiceOutput] = {
-//        v.as[GreeterServiceOutput] match {
-//          case Right(value) =>
-//            Some(value)
-//          case Left(problem) =>
-//            None
-//        }
-//      }
-//    }
-//
-//    override val requestMarshaller: FullMarshaller[GreeterServiceInput, Json] = new FullMarshaller[GreeterServiceInput, Json] {
-//      override def encode(v: GreeterServiceInput): Json = {
-//        v.asJson
-//      }
-//
-//      override def encodeUnsafe(v: AnyRef): Option[Json] = {
-//        v match {
-//          case i: GreeterServiceInput =>
-//            Some(encode(i))
-//          case _ =>
-//            None
-//        }
-//      }
-//    }
-//
-//    override val responseMarshaller: FullMarshaller[GreeterServiceOutput, Json] = new FullMarshaller[GreeterServiceOutput, Json] {
-//      override def encode(v: GreeterServiceOutput): Json = {
-//        v.asJson
-//      }
-//
-//      override def encodeUnsafe(v: AnyRef): Option[Json] = {
-//        v match {
-//          case i: GreeterServiceOutput =>
-//            Some(encode(i))
-//          case _ =>
-//            None
-//        }
-//      }
-//    }
-//
-//  }
-
 }

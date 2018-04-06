@@ -7,12 +7,14 @@ import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.{higherKinds, implicitConversions}
+import scala.util.Try
+
 //--------------------------------------------------------------------------
 // setup context and use
 
-
-class TrivialAppTransport[I, O, R[_]](server: Receiver[I, O, R]) extends Transport[I, R[O]] {
+class NetworkSimulator[I, O, R[_]](server: Receiver[I, O, R]) extends Transport[I, R[O]] {
   def send(v: I): R[O] = server.receive(v)
 }
 
@@ -28,13 +30,6 @@ class PseudoNetwork[I, O, R[_], RT[_]](transport: Transport[I, R[O]])(implicit c
 object Test {
 
   import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped._
-
-  //  class FailingMarshallers extends GreeterServiceWrapped.GreeterServiceStringMarshaller {
-  //    override val requestUnmarshaller: Unmarshaller[String, GreeterServiceInput] = (v: String) => ???
-  //    override val requestMarshaller: Marshaller[GreeterServiceInput, String] = (v: GreeterServiceInput) => ???
-  //    override val responseMarshaller: Marshaller[GreeterServiceOutput, String] = (v: GreeterServiceOutput) => ???
-  //    override val responseUnmarshaller: Unmarshaller[String, GreeterServiceOutput] = (v: String) => ???
-  //  }
 
   type M = TransportMarshallers[String, Muxed, String, Muxed]
 
@@ -94,6 +89,9 @@ object Test {
   }
 
   class SimpleDemo[R[_] : ServiceResult] {
+    final val c = implicitly[ServiceResult[R]]
+    println(s"Running demo with container $c")
+    println()
 
     val greeterService = new AbstractGreeterServer.Impl[R]
     val calculatorService = new AbstractCalculatorServer.Impl[R]
@@ -104,60 +102,28 @@ object Test {
     val multiplexor = new ServerMultiplexor[R](list)
 
 
-    val marshalling = new MImpl()
+    val marshalling: TransportMarshallers[String, Muxed, String, Muxed] = new MImpl()
     val server = new ServerReceiver(multiplexor, marshalling)
 
+    println("Testing direct RPC call...")
     val request = marshalling.encodeRequest(Muxed(GreeterServiceWrapped.GreetInput("John", "Doe"), GreeterServiceWrapped.serviceId))
     println(s"RPC call performed: ${server.receive(request)}")
 
-    //    val m: M = new TransportMarshallers[Json, AnyRef, Json, AnyRef] {
-    //      override val requestUnmarshaller: FullUnmarshaller[Json, AnyRef] = new FullUnmarshaller[Json, AnyRef] {
-    //        override def decodeUnsafe(v: Json): Option[AnyRef] = lis
-    //
-    //        override def decode(v: Json): AnyRef = ???
-    //      }
-    //      override val requestMarshaller: FullMarshaller[AnyRef, Json] = ???
-    //      override val responseMarshaller: FullMarshaller[AnyRef, Json] = ???
-    //      override val responseUnmarshaller: FullUnmarshaller[Json, AnyRef] = ???
-    //    }
-    //
-    //
-    //    val server = new ServerReceiver(multiplexor, marshalling)
-    //
-    //    val appTransport = new TrivialAppTransport(server)
-    //
-    //    val clientDispatcher = new ClientDispatcher(appTransport, marshalling)
-    //    val client = new GreeterServiceWrapped.GreeterServiceDispatcherPacking.Impl(new GreeterServiceWrapped.GreeterServiceSafeToUnsafeBridge(clientDispatcher))
+    val network: NetworkSimulator[String, String, R] = new NetworkSimulator(server)
+
+    val clientDispatcher: ClientDispatcher[String, Muxed, String, Muxed, R] = new ClientDispatcher(network, marshalling)
+    val client = new GreeterServiceWrapped.GreeterServiceDispatcherPacking.Impl(new GreeterServiceWrapped.GreeterServiceSafeToUnsafeBridge(clientDispatcher))
+
+    println()
+    println("Testing client RPC call...")
+    println(client.greet("Best", "Client"))
+    println()
   }
 
-
-  //  private def testSimple(marshalling: M): Unit = {
-  //    println()
-  //    println("testSimple...")
-  //    println(Try({
-  //      val demo = new SimpleDemo[Try](marshalling)
-  //      val result = demo.client.greet("John", "Doe")
-  //      result
-  //    }))
-  //
-  //    println(Try({
-  //      import ExecutionContext.Implicits._
-  //      val demo = new SimpleDemo[Future](marshalling)
-  //      val result = demo.client.greet("John", "Doe")
-  //      Thread.sleep(100)
-  //      result
-  //    }))
-  //
-  //    println(Try({
-  //      val demo = new SimpleDemo[Option](marshalling)
-  //      demo.client.greet("John", "Doe")
-  //    }))
-  //  }
-  //
-  //
-  //
   def main(args: Array[String]): Unit = {
-
+    implicit val ec = ExecutionContext.Implicits.global
     new SimpleDemo[Option]
+    new SimpleDemo[Try]
+    new SimpleDemo[Future]
   }
 }
