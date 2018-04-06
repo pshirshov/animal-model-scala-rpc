@@ -1,5 +1,7 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments
 
+import com.github.pshirshov.izumi.r2.idealingua.experiments
+import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped.{GreeterServiceInput, GreeterServiceOutput}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.impls._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.{TransportMarshallers, _}
@@ -16,7 +18,7 @@ import scala.util.Try
 
 class NetworkSimulator[I, O, R[_]](server: Receiver[I, O, R]) extends Transport[I, R[O]] {
   def send(v: I): R[O] = {
-    val received =  server.receive(v)
+    val received = server.receive(v)
     println(s"NetworkSimulator: value on wire: $v")
     received
   }
@@ -30,65 +32,36 @@ class TransformingNetworkSimulator[I, O, R[_], RT[_]](transport: Transport[I, R[
   }
 }
 
+class SimpleMarshallerImpl(codec: MuxedCodec) extends TransportMarshallers[String, Muxed, Muxed, String] {
+
+  import codec._
+
+  override def decodeRequest(requestWire: String): Muxed = {
+    val parsed = parse(requestWire).flatMap(_.as[Muxed])
+    println(s"Request parsed: $parsed")
+    parsed.right.get
+  }
+
+  override def decodeResponse(responseWire: String): Muxed = {
+    val parsed = parse(responseWire).flatMap(_.as[Muxed])
+    println(s"Response parsed: $parsed")
+    parsed.right.get
+  }
+
+  override def encodeRequest(request: Muxed): String = {
+    val out = request.asJson.noSpaces
+    println(s"Request serialized: $out")
+    out
+  }
+
+  override def encodeResponse(response: Muxed): String = {
+    val out = response.asJson.noSpaces
+    println(s"Response serialized: $out")
+    out
+  }
+}
 
 object Test {
-
-  import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped._
-
-  class MImpl extends TransportMarshallers[String, Muxed, Muxed, String] {
-    implicit val encodePolymorphic: Encoder[Muxed] = Encoder.instance { c =>
-      c.v match {
-        case v: GreeterServiceWrapped.GreeterServiceInput =>
-          Map("Input" -> Map(GreeterServiceWrapped.serviceId.value -> v.asJson)).asJson
-        case v: GreeterServiceWrapped.GreeterServiceOutput =>
-          Map("Output" -> Map(GreeterServiceWrapped.serviceId.value -> v.asJson)).asJson
-      }
-    }
-
-    implicit val decodePolymorphic: Decoder[Muxed] = Decoder.instance(c => {
-      val fname = c.keys.flatMap(_.headOption).toSeq.head
-      val value = c.downField(fname)
-      val sname = value.keys.flatMap(_.headOption).toSeq.head
-      val svalue = value.downField(sname)
-
-      fname match {
-        case "Input" =>
-          sname match {
-            case GreeterServiceWrapped.serviceId.value =>
-              svalue.as[GreeterServiceInput].map(v => Muxed(v, GreeterServiceWrapped.serviceId))
-          }
-        case "Output" =>
-          sname match {
-            case GreeterServiceWrapped.serviceId.value =>
-              svalue.as[GreeterServiceOutput].map(v => Muxed(v, GreeterServiceWrapped.serviceId))
-          }
-      }
-    })
-
-    override def decodeRequest(requestWire: String): Muxed = {
-      val parsed = parse(requestWire).flatMap(_.as[Muxed])
-      println(s"Request parsed: $parsed")
-      parsed.right.get
-    }
-
-    override def decodeResponse(responseWire: String): Muxed = {
-      val parsed = parse(responseWire).flatMap(_.as[Muxed])
-      println(s"Response parsed: $parsed")
-      parsed.right.get
-    }
-
-    override def encodeRequest(request: Muxed): String = {
-      val out = request.asJson.noSpaces
-      println(s"Request serialized: $out")
-      out
-    }
-
-    override def encodeResponse(response: Muxed): String = {
-      val out = response.asJson.noSpaces
-      println(s"Response serialized: $out")
-      out
-    }
-  }
 
   class SimpleDemo[R[_] : ServiceResult] {
     final val c = implicitly[ServiceResult[R]]
@@ -98,13 +71,14 @@ object Test {
     val greeterService = new AbstractGreeterServer.Impl[R]
     val calculatorService = new AbstractCalculatorServer.Impl[R]
     val greeterDispatcher = new GreeterServiceWrapped.GreeterServiceDispatcherUnpacking.Impl(greeterService)
-    //val calculatorDispatcher = new CalculatorServiceWrapped.CalculatorServiceDispatcherUnpacking.Impl(calculatorService)
+    val calculatorDispatcher = new CalculatorServiceWrapped.CalculatorServiceDispatcherUnpacking.Impl(calculatorService)
 
-    val list: List[UnsafeDispatcher[_, _, R]] = List(greeterDispatcher) //, calculatorDispatcher)
+    val list: List[UnsafeDispatcher[_, _, R]] = List(greeterDispatcher, calculatorDispatcher)
     val multiplexor = new ServerMultiplexor[R](list)
 
     // all the type annotations below are optional, infering works
-    val marshalling: TransportMarshallers[String, Muxed, Muxed, String] = new MImpl()
+    val codecs = List(GreeterServiceWrapped.CodecProvider, CalculatorServiceWrapped.CodecProvider)
+    val marshalling: TransportMarshallers[String, Muxed, Muxed, String] = new SimpleMarshallerImpl(new OpinionatedMuxedCodec(codecs))
     val server = new ServerReceiver(multiplexor, marshalling)
 
     println("Testing direct RPC call...")
@@ -114,11 +88,13 @@ object Test {
     val network: NetworkSimulator[String, String, R] = new NetworkSimulator(server)
 
     val clientDispatcher: ClientDispatcher[String, Muxed, Muxed, String, R] = new ClientDispatcher(network, marshalling)
-    val client = new GreeterServiceWrapped.GreeterServiceDispatcherPacking.Impl(new GreeterServiceWrapped.GreeterServiceSafeToUnsafeBridge(clientDispatcher))
+    val greeterClient = new GreeterServiceWrapped.GreeterServiceDispatcherPacking.Impl(new GreeterServiceWrapped.GreeterServiceSafeToUnsafeBridge(clientDispatcher))
+    val calculatorClient = new CalculatorServiceWrapped.CalculatorServiceDispatcherPacking.Impl(new CalculatorServiceWrapped.CalculatorServiceSafeToUnsafeBridge(clientDispatcher))
 
     println()
-    println("Testing client RPC call...")
-    println(client.greet("Best", "Client"))
+    println("Testing client RPC calls...")
+    println(greeterClient.greet("Best", "Client"))
+    println(calculatorClient.sum(1, 2))
     println()
   }
 

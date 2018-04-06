@@ -1,5 +1,6 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.OpinionatedMuxedCodec.DirectedPacket
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
 import io.circe._
 import io.circe.generic.semiauto._
@@ -91,6 +92,31 @@ object GreeterServiceWrapped {
 
 
   val serviceId =  ServiceId("GreeterService")
+
+  object CodecProvider extends MuxingCodecProvider {
+    import io.circe._
+    import io.circe.syntax._
+
+    val encoders: List[PartialFunction[AnyRef, Json]] = List(
+      {
+        case Muxed(v: GreeterServiceWrapped.GreeterServiceInput, _) =>
+          Map("Input" -> Map(GreeterServiceWrapped.serviceId.value -> v.asJson)).asJson
+        case Muxed(v: GreeterServiceWrapped.GreeterServiceOutput, _) =>
+          Map("Output" -> Map(GreeterServiceWrapped.serviceId.value -> v.asJson)).asJson
+      }
+    )
+
+
+    val decoders: List[PartialFunction[DirectedPacket, Decoder.Result[Muxed]]] = List(
+      {
+        case DirectedPacket("Input", GreeterServiceWrapped.serviceId, packet) =>
+          packet.as[GreeterServiceInput].map(v => Muxed(v, GreeterServiceWrapped.serviceId))
+
+        case DirectedPacket("Output", GreeterServiceWrapped.serviceId, packet) =>
+          packet.as[GreeterServiceOutput].map(v => Muxed(v, GreeterServiceWrapped.serviceId))
+      }
+    )
+  }
 
   trait GreeterServiceDispatcherUnpacking[R[_]]
     extends GreeterServiceWrapped[R]
