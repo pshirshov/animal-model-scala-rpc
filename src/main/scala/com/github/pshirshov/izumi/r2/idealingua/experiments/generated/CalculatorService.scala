@@ -49,6 +49,8 @@ object CalculatorServiceWrapped {
     implicit val decodeTestPayload: Decoder[CalculatorServiceOutput] = deriveDecoder
   }
 
+  val serviceId =  ServiceId("CalculatorService")
+
   trait CalculatorServiceDispatcherPacking[R[_]]
     extends CalculatorService[R]
       with WithResult[R] {
@@ -90,7 +92,6 @@ object CalculatorServiceWrapped {
   }
 
 
-  val serviceId =  ServiceId("CalculatorService")
 
   object CodecProvider extends MuxingCodecProvider {
     import io.circe._

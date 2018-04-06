@@ -1,11 +1,8 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments
 
-import com.github.pshirshov.izumi.r2.idealingua.experiments
-import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped.{GreeterServiceInput, GreeterServiceOutput}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.impls._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.{TransportMarshallers, _}
-import io.circe._
 import io.circe.parser._
 import io.circe.syntax._
 

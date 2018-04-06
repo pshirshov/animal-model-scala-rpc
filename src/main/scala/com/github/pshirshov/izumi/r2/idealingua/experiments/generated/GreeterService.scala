@@ -50,6 +50,8 @@ object GreeterServiceWrapped {
     implicit val decode: Decoder[GreeterServiceOutput] = deriveDecoder
   }
 
+  val serviceId =  ServiceId("GreeterService")
+
   trait GreeterServiceDispatcherPacking[R[_]]
     extends GreeterService[R]
       with WithResult[R] {
@@ -73,7 +75,7 @@ object GreeterServiceWrapped {
     import ServiceResult._
 
     override def dispatch(input: GreeterServiceInput): Result[GreeterServiceOutput] = {
-      dispatcher.dispatch(Muxed(input, serviceId) ).map {
+      dispatcher.dispatch(Muxed(input, serviceId)).map {
         case Muxed(t: GreeterServiceOutput, _) =>
           t
         case o =>
@@ -91,9 +93,8 @@ object GreeterServiceWrapped {
   }
 
 
-  val serviceId =  ServiceId("GreeterService")
-
   object CodecProvider extends MuxingCodecProvider {
+
     import io.circe._
     import io.circe.syntax._
 
@@ -157,4 +158,5 @@ object GreeterServiceWrapped {
     }
 
   }
+
 }
