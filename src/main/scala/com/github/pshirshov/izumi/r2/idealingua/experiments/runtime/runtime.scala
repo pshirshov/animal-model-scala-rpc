@@ -1,12 +1,11 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.runtime
 
 
-import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped.{GreeterServiceInput, GreeterServiceOutput}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.MuxingCodecProvider
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
 import scala.language.{higherKinds, implicitConversions}
+import scala.util.Try
 
 //--------------------------------------------------------------------------
 // Runtime: unopinionated part
