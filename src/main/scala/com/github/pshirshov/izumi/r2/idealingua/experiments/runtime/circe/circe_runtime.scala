@@ -11,10 +11,10 @@ trait CirceWrappedServiceDefinition {
 
 trait MuxedCodec {
   implicit val encodePolymorphicRequest: Encoder[ReqBody]
-  implicit val decodePolymorphicRequest: Decoder[ReqBody]
-
   implicit val encodePolymorphicResponse: Encoder[ResBody]
-  implicit val decodePolymorphicResponse: Decoder[ResBody]
+
+  implicit def decodePolymorphicRequest(implicit method: Method): Decoder[ReqBody]
+  implicit def decodePolymorphicResponse(implicit method: Method): Decoder[ResBody]
 }
 
 trait MuxingCodecProvider {
@@ -42,15 +42,17 @@ class OpinionatedMuxedCodec
     requestEncoders.foldLeft(PartialFunction.empty[ReqBody, Json])(_ orElse _)(c)
 
   }
-  override implicit val decodePolymorphicRequest: Decoder[ReqBody] = Decoder.instance(c => {
-    requestDecoders.foldLeft(PartialFunction.empty[HCursor, Decoder.Result[ReqBody]])(_ orElse _)(c)
-  })
 
   override implicit val encodePolymorphicResponse: Encoder[ResBody] = Encoder.instance { c =>
     responseEncoders.foldLeft(PartialFunction.empty[ResBody, Json])(_ orElse _)(c)
 
   }
-  override implicit val decodePolymorphicResponse: Decoder[ResBody] = Decoder.instance(c => {
+
+  override implicit def decodePolymorphicRequest(implicit method: Method): Decoder[ReqBody] = Decoder.instance(c => {
+    requestDecoders.foldLeft(PartialFunction.empty[HCursor, Decoder.Result[ReqBody]])(_ orElse _)(c)
+  })
+
+  override implicit def decodePolymorphicResponse(implicit method: Method): Decoder[ResBody] = Decoder.instance(c => {
     responseDecoders.foldLeft(PartialFunction.empty[HCursor, Decoder.Result[ResBody]])(_ orElse _)(c)
   })
 

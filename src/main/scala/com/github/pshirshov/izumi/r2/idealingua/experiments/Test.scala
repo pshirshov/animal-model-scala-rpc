@@ -43,12 +43,12 @@ class SimpleMarshallerImpl(codec: MuxedCodec) extends TransportMarshallers[Strin
       }
     }.map {
       r =>
-        println(r.apply("body"), r.apply("body").map(_.as[ReqBody]))
+        implicit val method: Method = Method(ServiceId(r.apply("service").flatMap(_.asString).get)
+          , MethodId(r.apply("method").flatMap(_.asString).get))
 
         MuxRequest[AnyRef](
           r.apply("body").map(_.as[ReqBody].right.get.value).get
-          , Method(ServiceId(r.apply("service").flatMap(_.asString).get)
-            , MethodId(r.apply("method").flatMap(_.asString).get))
+          , method
         )
     }
     println(s"Response parsed: $parsed")
@@ -65,11 +65,12 @@ class SimpleMarshallerImpl(codec: MuxedCodec) extends TransportMarshallers[Strin
       }
     }.map {
       r =>
-        println(r.apply("body"), r.apply("body").map(_.as[ResBody]))
+        implicit val method: Method = Method(ServiceId(r.apply("service").flatMap(_.asString).get)
+          , MethodId(r.apply("method").flatMap(_.asString).get))
+
         MuxResponse[AnyRef](
           r.apply("body").map(_.as[ResBody].right.get.value).get
-          , Method(ServiceId(r.apply("service").flatMap(_.asString).get)
-            , MethodId(r.apply("method").flatMap(_.asString).get))
+          , method
         )
     }
     println(s"Response parsed: $parsed")
