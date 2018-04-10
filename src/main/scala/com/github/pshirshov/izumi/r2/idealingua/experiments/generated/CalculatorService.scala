@@ -3,8 +3,7 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{CirceWrappedServiceDefinition, MuxingCodecProvider}
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.OpinionatedMuxedCodec.DirectedPacket
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.CirceWrappedServiceDefinition
 import io.circe._
 import io.circe.generic.semiauto._
 
@@ -34,6 +33,8 @@ object CalculatorServiceWrapped
 
   sealed trait CalculatorServiceOutput
 
+  case class SumOutput(value: Int) extends CalculatorServiceOutput
+
   override type Input = CalculatorServiceInput
   override type Output = CalculatorServiceOutput
 
@@ -45,7 +46,7 @@ object CalculatorServiceWrapped
   }
 
 
-  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed, Muxed, R]): CalculatorService[R] = {
+  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed[_], Muxed[_], R]): CalculatorService[R] = {
     client(new SafeToUnsafeBridge[R](dispatcher))
   }
 
@@ -58,7 +59,6 @@ object CalculatorServiceWrapped
     new idealingua.experiments.generated.CalculatorServiceWrapped.UnpackingDispatcher.Impl[R](service)
   }
 
-  case class SumOutput(value: Int) extends CalculatorServiceOutput
 
   object SumInput {
     implicit val encodeTestPayload: Encoder[SumInput] = deriveEncoder
@@ -70,7 +70,7 @@ object CalculatorServiceWrapped
     implicit val decodeTestPayload: Decoder[SumOutput] = deriveDecoder
   }
 
-  object CalculatorServiceInput {
+/*  object CalculatorServiceInput {
     implicit val encodeTestPayload: Encoder[CalculatorServiceInput] = deriveEncoder
     implicit val decodeTestPayload: Decoder[CalculatorServiceInput] = deriveDecoder
   }
@@ -79,6 +79,7 @@ object CalculatorServiceWrapped
     implicit val encodeTestPayload: Encoder[CalculatorServiceOutput] = deriveEncoder
     implicit val decodeTestPayload: Decoder[CalculatorServiceOutput] = deriveDecoder
   }
+*/
 
   val serviceId =  ServiceId("CalculatorService")
 
@@ -99,14 +100,14 @@ object CalculatorServiceWrapped
     }
   }
 
-  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed, Muxed, R]) extends Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with WithResult[R] {
+  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed[_], Muxed[_], R]) extends Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with WithResult[R] {
     override protected def _ServiceResult: ServiceResult[R] = implicitly
 
     import ServiceResult._
 
     override def dispatch(input: CalculatorServiceInput): Result[CalculatorServiceOutput] = {
-      dispatcher.dispatch(Muxed(input, serviceId) ).map {
-        case Muxed(t: CalculatorServiceOutput, _) =>
+      dispatcher.dispatch(Muxed(input, serviceId, MethodId("")) ).map {
+        case Muxed(t: CalculatorServiceOutput, _, _) =>
           t
         case o =>
           throw new TypeMismatchException(s"Unexpected output in CalculatorServiceSafeToUnsafeBridge.dispatch: $o", o)
@@ -143,10 +144,10 @@ object CalculatorServiceWrapped
 
     override def identifier: ServiceId = serviceId
 
-    override def dispatchUnsafe(input: Muxed): Option[Result[Muxed]] = {
+    override def dispatchUnsafe(input: Muxed[_]): Option[Result[Muxed[_]]] = {
       input.v match {
         case v: CalculatorServiceInput =>
-          Option(_ServiceResult.map(dispatch(v))(v => Muxed(v, identifier)))
+          Option(_ServiceResult.map(dispatch(v))(v => Muxed(v, identifier, MethodId(""))))
 
         case _ =>
           None
@@ -162,31 +163,31 @@ object CalculatorServiceWrapped
 
   }
 
-  override def codecProvider: MuxingCodecProvider = CodecProvider
-
-  object CodecProvider extends MuxingCodecProvider {
-    import io.circe._
-    import io.circe.syntax._
-
-    val encoders: List[PartialFunction[AnyRef, Json]] = List(
-      {
-        case Muxed(v: CalculatorServiceWrapped.CalculatorServiceInput, _) =>
-          Map("Input" -> Map(CalculatorServiceWrapped.serviceId.value -> v.asJson)).asJson
-        case Muxed(v: CalculatorServiceWrapped.CalculatorServiceOutput, _) =>
-          Map("Output" -> Map(CalculatorServiceWrapped.serviceId.value -> v.asJson)).asJson
-      }
-    )
-
-
-    val decoders: List[PartialFunction[DirectedPacket, Decoder.Result[Muxed]]] = List(
-      {
-        case DirectedPacket("Input", CalculatorServiceWrapped.serviceId, packet) =>
-          packet.as[CalculatorServiceInput].map(v => Muxed(v, CalculatorServiceWrapped.serviceId))
-
-        case DirectedPacket("Output", CalculatorServiceWrapped.serviceId, packet) =>
-          packet.as[CalculatorServiceOutput].map(v => Muxed(v, CalculatorServiceWrapped.serviceId))
-      }
-    )
-  }
+//  override def codecProvider: MuxingCodecProvider = CodecProvider
+//
+//  object CodecProvider extends MuxingCodecProvider {
+//    import io.circe._
+//    import io.circe.syntax._
+//
+//    val encoders: List[PartialFunction[AnyRef, Json]] = List(
+//      {
+//        case Muxed(v: CalculatorServiceWrapped.CalculatorServiceInput, _) =>
+//          Map("Input" -> Map(CalculatorServiceWrapped.serviceId.value -> v.asJson)).asJson
+//        case Muxed(v: CalculatorServiceWrapped.CalculatorServiceOutput, _) =>
+//          Map("Output" -> Map(CalculatorServiceWrapped.serviceId.value -> v.asJson)).asJson
+//      }
+//    )
+//
+//
+//    val decoders: List[PartialFunction[DirectedPacket, Decoder.Result[Muxed]]] = List(
+//      {
+//        case DirectedPacket("Input", CalculatorServiceWrapped.serviceId, packet) =>
+//          packet.as[CalculatorServiceInput].map(v => Muxed(v, CalculatorServiceWrapped.serviceId))
+//
+//        case DirectedPacket("Output", CalculatorServiceWrapped.serviceId, packet) =>
+//          packet.as[CalculatorServiceOutput].map(v => Muxed(v, CalculatorServiceWrapped.serviceId))
+//      }
+//    )
+//  }
 
 }

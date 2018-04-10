@@ -31,7 +31,7 @@ trait WrappedServiceDefinition {
 
 trait WrappedUnsafeServiceDefinition {
   this: WrappedServiceDefinition =>
-  def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed, Muxed, R]): Service[R]
+  def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed[_], Muxed[_], R]): Service[R]
 
   def serverUnsafe[R[_] : ServiceResult](service: Service[R]): UnsafeDispatcher[Input, Output, R]
 
