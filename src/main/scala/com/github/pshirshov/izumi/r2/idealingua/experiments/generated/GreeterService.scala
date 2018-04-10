@@ -200,16 +200,16 @@ object GreeterServiceWrapped
     )
 
 
-    override def requestDecoders: List[PartialFunction[HCursor, Result[ReqBody]]] = List(
+    override def requestDecoders: List[PartialFunction[CursorForMethod, Result[ReqBody]]] = List(
       {
-        case packet =>
+        case CursorForMethod(m, packet) if m.service == serviceId =>
           packet.as[GreeterServiceInput].map(v => ReqBody(v))
       }
     )
 
-    override def responseDecoders: List[PartialFunction[HCursor, Result[ResBody]]] =  List(
+    override def responseDecoders: List[PartialFunction[CursorForMethod, Result[ResBody]]] =  List(
       {
-        case packet =>
+        case CursorForMethod(m, packet) if m.service == serviceId =>
           packet.as[GreeterServiceOutput].map(v => ResBody(v))
       }
     )

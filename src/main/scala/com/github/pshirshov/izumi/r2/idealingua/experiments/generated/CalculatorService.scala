@@ -3,7 +3,7 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{CirceWrappedServiceDefinition, MuxingCodecProvider}
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{CirceWrappedServiceDefinition, CursorForMethod, MuxingCodecProvider}
 import io.circe.Decoder.Result
 import io.circe._
 import io.circe.generic.semiauto._
@@ -197,16 +197,16 @@ object CalculatorServiceWrapped
       }
     )
 
-    override def requestDecoders: List[PartialFunction[HCursor, Result[ReqBody]]] = List(
+    override def requestDecoders: List[PartialFunction[CursorForMethod, Result[ReqBody]]] = List(
       {
-        case packet =>
+        case CursorForMethod(m, packet) if m.service == serviceId =>
           packet.as[CalculatorServiceInput].map(v => ReqBody(v))
       }
     )
 
-    override def responseDecoders: List[PartialFunction[HCursor, Result[ResBody]]] = List(
+    override def responseDecoders: List[PartialFunction[CursorForMethod, Result[ResBody]]] = List(
       {
-        case packet =>
+        case CursorForMethod(m, packet) if m.service == serviceId =>
           packet.as[CalculatorServiceOutput].map(v => ResBody(v))
       }
     )

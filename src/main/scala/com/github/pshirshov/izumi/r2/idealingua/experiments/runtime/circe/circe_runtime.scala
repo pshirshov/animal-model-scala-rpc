@@ -17,14 +17,16 @@ trait MuxedCodec {
   implicit def decodePolymorphicResponse(implicit method: Method): Decoder[ResBody]
 }
 
+case class CursorForMethod(methodId: Method, cursor: HCursor)
+
 trait MuxingCodecProvider {
   def requestEncoders: List[PartialFunction[ReqBody, Json]]
 
   def responseEncoders: List[PartialFunction[ResBody, Json]]
 
-  def requestDecoders: List[PartialFunction[HCursor, Decoder.Result[ReqBody]]]
+  def requestDecoders: List[PartialFunction[CursorForMethod, Decoder.Result[ReqBody]]]
 
-  def responseDecoders: List[PartialFunction[HCursor, Decoder.Result[ResBody]]]
+  def responseDecoders: List[PartialFunction[CursorForMethod, Decoder.Result[ResBody]]]
 
 }
 
@@ -49,11 +51,11 @@ class OpinionatedMuxedCodec
   }
 
   override implicit def decodePolymorphicRequest(implicit method: Method): Decoder[ReqBody] = Decoder.instance(c => {
-    requestDecoders.foldLeft(PartialFunction.empty[HCursor, Decoder.Result[ReqBody]])(_ orElse _)(c)
+    requestDecoders.foldLeft(PartialFunction.empty[CursorForMethod, Decoder.Result[ReqBody]])(_ orElse _)(CursorForMethod(method, c))
   })
 
   override implicit def decodePolymorphicResponse(implicit method: Method): Decoder[ResBody] = Decoder.instance(c => {
-    responseDecoders.foldLeft(PartialFunction.empty[HCursor, Decoder.Result[ResBody]])(_ orElse _)(c)
+    responseDecoders.foldLeft(PartialFunction.empty[CursorForMethod, Decoder.Result[ResBody]])(_ orElse _)(CursorForMethod(method, c))
   })
 
 }
