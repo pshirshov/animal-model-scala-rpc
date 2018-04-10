@@ -2,6 +2,7 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 
 import com.github.pshirshov.izumi.r2.idealingua
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
+import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped.{GreetInput, GreetOutput, GreeterServiceInput, GreeterServiceOutput}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.CirceWrappedServiceDefinition
 import io.circe._
@@ -106,7 +107,7 @@ object CalculatorServiceWrapped
     import ServiceResult._
 
     override def dispatch(input: CalculatorServiceInput): Result[CalculatorServiceOutput] = {
-      dispatcher.dispatch(Muxed(input, serviceId, MethodId("")) ).map {
+      dispatcher.dispatch(Muxed(input, serviceId, toMethodId(input)) ).map {
         case Muxed(t: CalculatorServiceOutput, _, _) =>
           t
         case o =>
@@ -147,7 +148,7 @@ object CalculatorServiceWrapped
     override def dispatchUnsafe(input: Muxed[_]): Option[Result[Muxed[_]]] = {
       input.v match {
         case v: CalculatorServiceInput =>
-          Option(_ServiceResult.map(dispatch(v))(v => Muxed(v, identifier, MethodId(""))))
+          Option(_ServiceResult.map(dispatch(v))(v => Muxed(v, identifier, toMethodId(v))))
 
         case _ =>
           None
@@ -163,7 +164,19 @@ object CalculatorServiceWrapped
 
   }
 
-//  override def codecProvider: MuxingCodecProvider = CodecProvider
+  def toMethodId(v: CalculatorServiceInput): MethodId  = {
+    v match {
+      case _: SumInput => MethodId("sum")
+    }
+  }
+  def toMethodId(v: CalculatorServiceOutput): MethodId  = {
+    v match {
+      case _: SumOutput => MethodId("sum")
+    }
+  }
+
+
+  //  override def codecProvider: MuxingCodecProvider = CodecProvider
 //
 //  object CodecProvider extends MuxingCodecProvider {
 //    import io.circe._

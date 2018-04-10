@@ -106,7 +106,7 @@ object GreeterServiceWrapped
     import ServiceResult._
 
     override def dispatch(input: GreeterServiceInput): Result[GreeterServiceOutput] = {
-      dispatcher.dispatch(Muxed(input, serviceId, MethodId(""))).map {
+      dispatcher.dispatch(Muxed(input, serviceId, toMethodId(input))).map {
         case Muxed(t: GreeterServiceOutput, _, _) =>
           t
         case o =>
@@ -147,13 +147,25 @@ object GreeterServiceWrapped
     override def dispatchUnsafe(input: Muxed[_]): Option[Result[Muxed[_]]] = {
       input.v match {
         case v: GreeterServiceInput =>
-          Option(_ServiceResult.map(dispatch(v))(v => Muxed(v, identifier, MethodId(""))))
+          Option(_ServiceResult.map(dispatch(v))(v => Muxed(v, identifier, toMethodId(v))))
 
         case _ =>
           None
       }
     }
   }
+
+  def toMethodId(v: GreeterServiceInput): MethodId  = {
+    v match {
+      case _: GreetInput => MethodId("greet")
+    }
+  }
+  def toMethodId(v: GreeterServiceOutput): MethodId  = {
+    v match {
+      case _: GreetOutput => MethodId("greet")
+    }
+  }
+
 
   object UnpackingDispatcher {
 
