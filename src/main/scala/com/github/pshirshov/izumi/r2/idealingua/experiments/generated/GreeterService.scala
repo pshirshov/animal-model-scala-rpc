@@ -3,8 +3,8 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.OpinionatedMuxedCodec.DirectedPacket
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{Body, CirceWrappedServiceDefinition, MuxingCodecProvider}
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe._
+import io.circe.Decoder.Result
 import io.circe._
 import io.circe.generic.semiauto._
 
@@ -185,23 +185,32 @@ object GreeterServiceWrapped
     import io.circe._
     import io.circe.syntax._
 
-    val encoders: List[PartialFunction[Body, Json]] = List(
+    override def requestEncoders: List[PartialFunction[ReqBody, Json]] = List(
       {
-        case Body(v: GreeterServiceWrapped.GreeterServiceInput) =>
+        case ReqBody(v: GreeterServiceInput) =>
           v.asJson
-        case Body(v: GreeterServiceWrapped.GreeterServiceOutput) =>
+      }
+    )
+
+    override def responseEncoders: List[PartialFunction[ResBody, Json]] = List(
+      {
+        case ResBody(v: GreeterServiceOutput) =>
           v.asJson
       }
     )
 
 
-    val decoders: List[PartialFunction[DirectedPacket, Decoder.Result[Body]]] = List(
+    override def requestDecoders: List[PartialFunction[HCursor, Result[ReqBody]]] = List(
       {
-        case DirectedPacket("Input", GreeterServiceWrapped.serviceId, packet) =>
-          packet.as[GreeterServiceInput].map(v => Body(v))
+        case packet =>
+          packet.as[GreeterServiceInput].map(v => ReqBody(v))
+      }
+    )
 
-        case DirectedPacket("Output", GreeterServiceWrapped.serviceId, packet) =>
-          packet.as[GreeterServiceOutput].map(v => Body(v))
+    override def responseDecoders: List[PartialFunction[HCursor, Result[ResBody]]] =  List(
+      {
+        case packet =>
+          packet.as[GreeterServiceOutput].map(v => ResBody(v))
       }
     )
   }

@@ -2,10 +2,9 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 
 import com.github.pshirshov.izumi.r2.idealingua
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
-import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped.{GreetInput, GreetOutput, GreeterServiceInput, GreeterServiceOutput}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.OpinionatedMuxedCodec.DirectedPacket
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{Body, CirceWrappedServiceDefinition, MuxingCodecProvider}
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{CirceWrappedServiceDefinition, MuxingCodecProvider, ReqBody, ResBody}
+import io.circe.Decoder.Result
 import io.circe._
 import io.circe.generic.semiauto._
 
@@ -184,23 +183,31 @@ object CalculatorServiceWrapped
     import io.circe._
     import io.circe.syntax._
 
-    val encoders: List[PartialFunction[Body, Json]] = List(
+    override def requestEncoders: List[PartialFunction[ReqBody, Json]] = List(
       {
-        case Body(v: CalculatorServiceWrapped.CalculatorServiceInput) =>
-          v.asJson
-        case Body(v: CalculatorServiceWrapped.CalculatorServiceOutput) =>
+        case ReqBody(v: CalculatorServiceWrapped.CalculatorServiceInput) =>
           v.asJson
       }
     )
 
-
-    val decoders: List[PartialFunction[DirectedPacket, Decoder.Result[Body]]] = List(
+    override def responseEncoders: List[PartialFunction[ResBody, Json]] = List(
       {
-        case DirectedPacket("Input", CalculatorServiceWrapped.serviceId, packet) =>
-          packet.as[CalculatorServiceInput].map(v => Body(v))
+        case ResBody(v: CalculatorServiceWrapped.CalculatorServiceOutput) =>
+          v.asJson
+      }
+    )
 
-        case DirectedPacket("Output", CalculatorServiceWrapped.serviceId, packet) =>
-          packet.as[CalculatorServiceOutput].map(v => Body(v))
+    override def requestDecoders: List[PartialFunction[HCursor, Result[ReqBody]]] = List(
+      {
+        case packet =>
+          packet.as[CalculatorServiceInput].map(v => ReqBody(v))
+      }
+    )
+
+    override def responseDecoders: List[PartialFunction[HCursor, Result[ResBody]]] = List(
+      {
+        case packet =>
+          packet.as[CalculatorServiceOutput].map(v => ResBody(v))
       }
     )
   }

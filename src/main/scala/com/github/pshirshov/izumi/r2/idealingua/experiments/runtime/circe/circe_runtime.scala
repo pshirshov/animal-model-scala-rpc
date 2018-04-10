@@ -1,8 +1,7 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe
 
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
-import io.circe.{ACursor, Decoder, Encoder, Json}
-
+import io.circe._
 
 
 trait CirceWrappedServiceDefinition {
@@ -10,16 +9,26 @@ trait CirceWrappedServiceDefinition {
   def codecProvider: MuxingCodecProvider
 }
 
-case class Body(value: AnyRef) extends AnyRef
+case class ReqBody(value: AnyRef) extends AnyRef
+
+case class ResBody(value: AnyRef) extends AnyRef
 
 trait MuxedCodec {
-  implicit val encodePolymorphic: Encoder[Body]
+  implicit val encodePolymorphicRequest: Encoder[ReqBody]
+  implicit val decodePolymorphicRequest: Decoder[ReqBody]
 
-  implicit val decodePolymorphic: Decoder[Body]
+  implicit val encodePolymorphicResponse: Encoder[ResBody]
+  implicit val decodePolymorphicResponse: Decoder[ResBody]
 }
+
 trait MuxingCodecProvider {
-  def encoders: List[PartialFunction[Body, Json]]
-  def decoders: List[PartialFunction[OpinionatedMuxedCodec.DirectedPacket, Decoder.Result[Body]]]
+  def requestEncoders: List[PartialFunction[ReqBody, Json]]
+
+  def responseEncoders: List[PartialFunction[ResBody, Json]]
+
+  def requestDecoders: List[PartialFunction[HCursor, Decoder.Result[ReqBody]]]
+
+  def responseDecoders: List[PartialFunction[HCursor, Decoder.Result[ResBody]]]
 
 }
 
@@ -28,28 +37,29 @@ class OpinionatedMuxedCodec
   provider: List[MuxingCodecProvider]
 ) extends MuxedCodec {
 
-  import OpinionatedMuxedCodec._
+  private val requestEncoders = provider.flatMap(_.requestEncoders)
+  private val responseEncoders = provider.flatMap(_.responseEncoders)
+  private val requestDecoders = provider.flatMap(_.requestDecoders)
+  private val responseDecoders = provider.flatMap(_.responseDecoders)
 
-  private val encoders = provider.flatMap(_.encoders)
-  private val decoders = provider.flatMap(_.decoders)
+  override implicit val encodePolymorphicRequest: Encoder[ReqBody] = Encoder.instance { c =>
+    requestEncoders.foldLeft(PartialFunction.empty[ReqBody, Json])(_ orElse _)(c)
 
-  implicit val encodePolymorphic: Encoder[Body] = Encoder.instance { c =>
-    encoders.foldLeft(PartialFunction.empty[Body, Json])(_ orElse _)(c)
   }
-
-  implicit val decodePolymorphic: Decoder[Body] = Decoder.instance(c => {
-    val direction = c.keys.flatMap(_.headOption).toSeq.head
-    val undirectedPacket = c.downField(direction)
-    val serviceName = undirectedPacket.keys.flatMap(_.headOption).toSeq.head
-    val body = undirectedPacket.downField(serviceName)
-    val packet = DirectedPacket(direction, ServiceId(serviceName), body)
-    decoders.foldLeft(PartialFunction.empty[DirectedPacket, Decoder.Result[Body]])(_ orElse _)(packet)
+  override implicit val decodePolymorphicRequest: Decoder[ReqBody] = Decoder.instance(c => {
+    requestDecoders.foldLeft(PartialFunction.empty[HCursor, Decoder.Result[ReqBody]])(_ orElse _)(c)
   })
+
+  override implicit val encodePolymorphicResponse: Encoder[ResBody] = Encoder.instance { c =>
+    responseEncoders.foldLeft(PartialFunction.empty[ResBody, Json])(_ orElse _)(c)
+
+  }
+  override implicit val decodePolymorphicResponse: Decoder[ResBody] = Decoder.instance(c => {
+    responseDecoders.foldLeft(PartialFunction.empty[HCursor, Decoder.Result[ResBody]])(_ orElse _)(c)
+  })
+
 }
 
 object OpinionatedMuxedCodec {
   def apply(definitions: List[CirceWrappedServiceDefinition]) = new OpinionatedMuxedCodec(definitions.map(_.codecProvider))
-
-  case class DirectedPacket(direction: String, service: ServiceId, value: ACursor)
-
 }
