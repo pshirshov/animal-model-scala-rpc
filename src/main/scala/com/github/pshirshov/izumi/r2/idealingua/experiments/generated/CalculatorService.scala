@@ -47,7 +47,7 @@ object CalculatorServiceWrapped
   }
 
 
-  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed[_], Muxed[_], R]): CalculatorService[R] = {
+  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[_], MuxResponse[_], R]): CalculatorService[R] = {
     client(new SafeToUnsafeBridge[R](dispatcher))
   }
 
@@ -101,14 +101,14 @@ object CalculatorServiceWrapped
     }
   }
 
-  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed[_], Muxed[_], R]) extends Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with WithResult[R] {
+  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[_], MuxResponse[_], R]) extends Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with WithResult[R] {
     override protected def _ServiceResult: ServiceResult[R] = implicitly
 
     import ServiceResult._
 
     override def dispatch(input: CalculatorServiceInput): Result[CalculatorServiceOutput] = {
-      dispatcher.dispatch(Muxed(input, serviceId, toMethodId(input)) ).map {
-        case Muxed(t: CalculatorServiceOutput, _, _) =>
+      dispatcher.dispatch(MuxRequest(input, serviceId, toMethodId(input)) ).map {
+        case MuxResponse(t: CalculatorServiceOutput, _, _) =>
           t
         case o =>
           throw new TypeMismatchException(s"Unexpected output in CalculatorServiceSafeToUnsafeBridge.dispatch: $o", o)
@@ -145,10 +145,10 @@ object CalculatorServiceWrapped
 
     override def identifier: ServiceId = serviceId
 
-    override def dispatchUnsafe(input: Muxed[_]): Option[Result[Muxed[_]]] = {
+    override def dispatchUnsafe(input: MuxRequest[_]): Option[Result[MuxResponse[_]]] = {
       input.v match {
         case v: CalculatorServiceInput =>
-          Option(_ServiceResult.map(dispatch(v))(v => Muxed(v, identifier, toMethodId(v))))
+          Option(_ServiceResult.map(dispatch(v))(v => MuxResponse(v, identifier, toMethodId(v))))
 
         case _ =>
           None

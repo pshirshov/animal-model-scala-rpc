@@ -56,7 +56,7 @@ object GreeterServiceWrapped
     new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R](service)
   }
 
-  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed[_], Muxed[_], R]): GreeterService[R] = {
+  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[_], MuxResponse[_], R]): GreeterService[R] = {
     client(new SafeToUnsafeBridge[R](dispatcher))
   }
 
@@ -100,14 +100,14 @@ object GreeterServiceWrapped
     }
   }
 
-  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed[_], Muxed[_], R]) extends Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] with WithResult[R] {
+  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[_], MuxResponse[_], R]) extends Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] with WithResult[R] {
     override protected def _ServiceResult: ServiceResult[R] = implicitly
 
     import ServiceResult._
 
     override def dispatch(input: GreeterServiceInput): Result[GreeterServiceOutput] = {
-      dispatcher.dispatch(Muxed(input, serviceId, toMethodId(input))).map {
-        case Muxed(t: GreeterServiceOutput, _, _) =>
+      dispatcher.dispatch(MuxRequest(input, serviceId, toMethodId(input))).map {
+        case MuxResponse(t: GreeterServiceOutput, _, _) =>
           t
         case o =>
           throw new TypeMismatchException(s"Unexpected output in GreeterServiceSafeToUnsafeBridge.dispatch: $o", o)
@@ -144,10 +144,10 @@ object GreeterServiceWrapped
 
     override def identifier: ServiceId = serviceId
 
-    override def dispatchUnsafe(input: Muxed[_]): Option[Result[Muxed[_]]] = {
+    override def dispatchUnsafe(input: MuxRequest[_]): Option[Result[MuxResponse[_]]] = {
       input.v match {
         case v: GreeterServiceInput =>
-          Option(_ServiceResult.map(dispatch(v))(v => Muxed(v, identifier, toMethodId(v))))
+          Option(_ServiceResult.map(dispatch(v))(v => MuxResponse(v, identifier, toMethodId(v))))
 
         case _ =>
           None

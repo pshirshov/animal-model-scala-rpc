@@ -107,7 +107,7 @@ object TestMul {
 
     // all the type annotations below are optional, infering works
     val codecs = List(GreeterServiceWrapped, CalculatorServiceWrapped)
-    val marshalling: TransportMarshallers[String, Muxed[_], Muxed[_], String] = ??? //new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
+    val marshalling: TransportMarshallers[String, MuxRequest[_], MuxResponse[_], String] = ??? //new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
     val server = new ServerReceiver(muxer, marshalling)
 
 //    println("Testing direct RPC call...")
@@ -116,7 +116,7 @@ object TestMul {
 
     val network: NetworkSimulator[String, String, R] = new NetworkSimulator(server)
 
-    val clientDispatcher: ClientDispatcher[String, Muxed[_], Muxed[_], String, R] = new ClientDispatcher(network, marshalling)
+    val clientDispatcher: ClientDispatcher[String, MuxRequest[_], MuxResponse[_], String, R] = new ClientDispatcher(network, marshalling)
     val greeterClient = GreeterServiceWrapped.clientUnsafe(clientDispatcher)
     val calculatorClient = CalculatorServiceWrapped.clientUnsafe(clientDispatcher)
 
@@ -144,7 +144,7 @@ object TestMul {
 
     // all the type annotations below are optional, infering works
     val codecs = List(GreeterServiceWrapped, CalculatorServiceWrapped)
-    val marshalling: TransportMarshallers[String, Muxed[_], Muxed[_], String] = ??? //new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
+    val marshalling: TransportMarshallers[String, MuxRequest[_], MuxResponse[_], String] = ??? //new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
     val server = new ServerReceiver(muxer, marshalling)
 
 //    println("Testing direct RPC call...")
@@ -159,7 +159,7 @@ object TestMul {
       wrapperRestorer
     }
 
-    val clientDispatcher: ClientDispatcher[String, Muxed[_], Muxed[_], String, R] = new ClientDispatcher(transport, marshalling)
+    val clientDispatcher: ClientDispatcher[String, MuxRequest[_], MuxResponse[_], String, R] = new ClientDispatcher(transport, marshalling)
     val greeterClient = GreeterServiceWrapped.clientUnsafe(clientDispatcher)
     val calculatorClient = CalculatorServiceWrapped.clientUnsafe(clientDispatcher)
 
