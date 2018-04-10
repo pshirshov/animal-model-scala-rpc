@@ -22,7 +22,11 @@ trait GreeterServiceWrapped[R[_]] extends WithResultType[R] {
   def greet(input: GreetInput): Result[GreetOutput]
 }
 
-object GreeterServiceWrapped extends IdentifiableServiceDefinition with WrappedServiceDefinition with CirceWrappedServiceDefinition {
+object GreeterServiceWrapped
+  extends IdentifiableServiceDefinition
+    with WrappedServiceDefinition
+    with WrappedUnsafeServiceDefinition
+    with CirceWrappedServiceDefinition {
 
   sealed trait GreeterServiceInput
 

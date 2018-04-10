@@ -22,7 +22,11 @@ trait CalculatorServiceWrapped[R[_]] extends WithResultType[R] {
   def sum(input: SumInput): Result[SumOutput]
 }
 
-object CalculatorServiceWrapped extends IdentifiableServiceDefinition with WrappedServiceDefinition with CirceWrappedServiceDefinition {
+object CalculatorServiceWrapped
+  extends IdentifiableServiceDefinition
+    with WrappedServiceDefinition
+    with WrappedUnsafeServiceDefinition
+    with CirceWrappedServiceDefinition {
 
   sealed trait CalculatorServiceInput
 

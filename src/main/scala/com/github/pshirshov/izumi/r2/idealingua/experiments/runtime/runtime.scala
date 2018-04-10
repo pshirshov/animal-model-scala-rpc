@@ -18,21 +18,6 @@ trait TransportMarshallers[RequestWire, Request, Response, ResponseWire] {
   def encodeResponse(response: Response): ResponseWire
 }
 
-trait WrappedServiceDefinition {
-  this: IdentifiableServiceDefinition =>
-
-  type Input
-  type Output
-  type Service[_[_]]
-
-  def client[R[_] : ServiceResult](dispatcher: Dispatcher[Input, Output, R]): Service[R]
-
-  def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[Muxed, Muxed, R]): Service[R]
-
-  def server[R[_] : ServiceResult](service: Service[R]): Dispatcher[Input, Output, R]
-
-  def serverUnsafe[R[_] : ServiceResult](service: Service[R]): UnsafeDispatcher[Input, Output, R]
-}
 
 
 class ServerReceiver[RequestWire, Request, Response, ResponseWire, R[_] : ServiceResult]
@@ -67,17 +52,5 @@ class ClientDispatcher[RequestWire, Request, Response, ResponseWire, R[_] : Serv
 }
 
 
-class ServerMultiplexor[R[_]](dispatchers: List[UnsafeDispatcher[_, _, R]]) extends Dispatcher[Muxed, Muxed, R] {
-  override def dispatch(input: Muxed): Result[Muxed] = {
-    dispatchers.foreach {
-      d =>
-        d.dispatchUnsafe(input) match {
-          case Some(v) =>
-            return v
-          case None =>
-        }
-    }
-    throw new MultiplexingException(s"Cannot handle $input, services: $dispatchers", input)
-  }
-}
+
 
