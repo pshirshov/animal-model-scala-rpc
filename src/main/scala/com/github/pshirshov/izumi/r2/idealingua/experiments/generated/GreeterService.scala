@@ -106,8 +106,9 @@ object GreeterServiceWrapped
     import ServiceResult._
 
     override def dispatch(input: GreeterServiceInput): Result[GreeterServiceOutput] = {
-      dispatcher.dispatch(MuxRequest(input, serviceId, toMethodId(input))).map {
-        case MuxResponse(t: GreeterServiceOutput, _, _) =>
+      val muxedRequest = MuxRequest(input, toMethodId(input))
+      dispatcher.dispatch(muxedRequest).map {
+        case MuxResponse(t: GreeterServiceOutput, _) =>
           t
         case o =>
           throw new TypeMismatchException(s"Unexpected output in GreeterServiceSafeToUnsafeBridge.dispatch: $o", o)
@@ -147,7 +148,7 @@ object GreeterServiceWrapped
     override def dispatchUnsafe(input: MuxRequest[_]): Option[Result[MuxResponse[_]]] = {
       input.v match {
         case v: GreeterServiceInput =>
-          Option(_ServiceResult.map(dispatch(v))(v => MuxResponse(v, identifier, toMethodId(v))))
+          Option(_ServiceResult.map(dispatch(v))(v => MuxResponse(v, toMethodId(v))))
 
         case _ =>
           None
@@ -155,14 +156,14 @@ object GreeterServiceWrapped
     }
   }
 
-  def toMethodId(v: GreeterServiceInput): MethodId  = {
+  def toMethodId(v: GreeterServiceInput): Method  = {
     v match {
-      case _: GreetInput => MethodId("greet")
+      case _: GreetInput => Method(serviceId, MethodId("greet"))
     }
   }
-  def toMethodId(v: GreeterServiceOutput): MethodId  = {
+  def toMethodId(v: GreeterServiceOutput): Method  = {
     v match {
-      case _: GreetOutput => MethodId("greet")
+      case _: GreetOutput => Method(serviceId, MethodId("greet"))
     }
   }
 

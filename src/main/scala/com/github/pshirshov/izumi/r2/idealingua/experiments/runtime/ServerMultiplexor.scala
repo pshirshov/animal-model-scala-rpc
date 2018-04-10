@@ -8,8 +8,10 @@ trait UnsafeDispatcher[In, Out, R[_]] extends WithResultType[R] {
   def dispatchUnsafe(input: MuxRequest[_]): Option[Result[MuxResponse[_]]]
 }
 
-case class MuxResponse[T](v: T, service: ServiceId, methodId: MethodId)
-case class MuxRequest[T](v: T, service: ServiceId, methodId: MethodId)
+case class Method(service: ServiceId, methodId: MethodId)
+
+case class MuxResponse[T](v: T, method: Method)
+case class MuxRequest[T](v: T, method: Method)
 
 //case class Demuxed(v: AnyRef, service: ServiceId)
 

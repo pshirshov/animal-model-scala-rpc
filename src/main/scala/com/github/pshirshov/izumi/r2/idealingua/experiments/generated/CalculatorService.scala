@@ -107,8 +107,8 @@ object CalculatorServiceWrapped
     import ServiceResult._
 
     override def dispatch(input: CalculatorServiceInput): Result[CalculatorServiceOutput] = {
-      dispatcher.dispatch(MuxRequest(input, serviceId, toMethodId(input)) ).map {
-        case MuxResponse(t: CalculatorServiceOutput, _, _) =>
+      dispatcher.dispatch(MuxRequest(input, toMethodId(input)) ).map {
+        case MuxResponse(t: CalculatorServiceOutput, _) =>
           t
         case o =>
           throw new TypeMismatchException(s"Unexpected output in CalculatorServiceSafeToUnsafeBridge.dispatch: $o", o)
@@ -148,7 +148,7 @@ object CalculatorServiceWrapped
     override def dispatchUnsafe(input: MuxRequest[_]): Option[Result[MuxResponse[_]]] = {
       input.v match {
         case v: CalculatorServiceInput =>
-          Option(_ServiceResult.map(dispatch(v))(v => MuxResponse(v, identifier, toMethodId(v))))
+          Option(_ServiceResult.map(dispatch(v))(v => MuxResponse(v, toMethodId(v))))
 
         case _ =>
           None
@@ -164,14 +164,14 @@ object CalculatorServiceWrapped
 
   }
 
-  def toMethodId(v: CalculatorServiceInput): MethodId  = {
+  def toMethodId(v: CalculatorServiceInput): Method  = {
     v match {
-      case _: SumInput => MethodId("sum")
+      case _: SumInput => Method(serviceId, MethodId("sum"))
     }
   }
-  def toMethodId(v: CalculatorServiceOutput): MethodId  = {
+  def toMethodId(v: CalculatorServiceOutput): Method  = {
     v match {
-      case _: SumOutput => MethodId("sum")
+      case _: SumOutput => Method(serviceId, MethodId("sum"))
     }
   }
 
