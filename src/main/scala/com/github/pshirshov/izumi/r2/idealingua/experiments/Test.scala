@@ -2,6 +2,7 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments
 
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.impls._
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.MuxedCodec
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.{TransportMarshallers, _}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -25,45 +26,67 @@ class TransformingNetworkSimulator[I, O, R[_], RT[_]](transport: Transport[I, R[
   }
 }
 
-//class SimpleMarshallerImpl(codec: MuxedCodec) extends TransportMarshallers[String, Muxed, Muxed, String] {
-//
+class SimpleMarshallerImpl(codec: MuxedCodec) extends TransportMarshallers[String, MuxRequest[_], MuxResponse[_], String] {
+
+
 //  import codec._
+//  import io.circe.syntax._
+//  import io.circe.parser._
 //
-//  override def decodeRequest(requestWire: String): Muxed = {
-//    val parsed = parse(requestWire).flatMap(_.as[Muxed])
+//  override def decodeRequest(requestWire: String): MuxRequest[_] = {
+//    val parsed = parse(requestWire).flatMap(_.as[MuxRequest[_]])
 //    println(s"Request parsed: $parsed")
 //    parsed.right.get
 //  }
 //
-//  override def decodeResponse(responseWire: String): Muxed = {
-//    val parsed = parse(responseWire).flatMap(_.as[Muxed])
+//  override def decodeResponse(responseWire: String): MuxResponse[_] = {
+//    val parsed = parse(responseWire).flatMap(_.as[MuxResponse[_]])
 //    println(s"Response parsed: $parsed")
 //    parsed.right.get
 //  }
 //
-//  override def encodeRequest(request: Muxed): String = {
+//  override def encodeRequest(request: MuxRequest[_]): String = {
 //    val out = request.asJson.noSpaces
 //    println(s"Request serialized: $out")
 //    out
 //  }
 //
-//  override def encodeResponse(response: Muxed): String = {
+//  override def encodeResponse(response: MuxResponse[_]): String = {
 //    val out = response.asJson.noSpaces
 //    println(s"Response serialized: $out")
 //    out
 //  }
-//}
-//
-//class DirectMarshallerImpl() extends TransportMarshallers[String, GreeterServiceWrapped.GreeterServiceInput, GreeterServiceWrapped.GreeterServiceOutput, String] {
-//  override def decodeRequest(requestWire: String): GreeterServiceWrapped.GreeterServiceInput = parse(requestWire).flatMap(_.as[GreeterServiceWrapped.GreeterServiceInput]).right.get
-//
-//  override def encodeRequest(request: GreeterServiceWrapped.GreeterServiceInput): String = request.asJson.noSpaces
-//
-//  override def decodeResponse(responseWire: String): GreeterServiceWrapped.GreeterServiceOutput = parse(responseWire).flatMap(_.as[GreeterServiceWrapped.GreeterServiceOutput]).right.get
-//
-//  override def encodeResponse(response: GreeterServiceWrapped.GreeterServiceOutput): String = response.asJson.noSpaces
-//
-//}
+  override def decodeRequest(requestWire: String): MuxRequest[_] = ???
+
+  override def encodeRequest(request: MuxRequest[_]): String = ???
+
+  override def decodeResponse(responseWire: String): MuxResponse[_] = ???
+
+  override def encodeResponse(response: MuxResponse[_]): String = ???
+}
+
+class DirectMarshallerImpl() extends TransportMarshallers[String, GreeterServiceWrapped.GreeterServiceInput, GreeterServiceWrapped.GreeterServiceOutput, String] {
+
+  import io.circe.syntax._
+  import io.circe.parser._
+
+  override def decodeRequest(requestWire: String): GreeterServiceWrapped.GreeterServiceInput = {
+    parse(requestWire).flatMap(_.as[GreeterServiceWrapped.GreeterServiceInput]).right.get
+  }
+
+  override def encodeRequest(request: GreeterServiceWrapped.GreeterServiceInput): String = {
+    request.asJson.noSpaces
+  }
+
+  override def decodeResponse(responseWire: String): GreeterServiceWrapped.GreeterServiceOutput = {
+    parse(responseWire).flatMap(_.as[GreeterServiceWrapped.GreeterServiceOutput]).right.get
+  }
+
+  override def encodeResponse(response: GreeterServiceWrapped.GreeterServiceOutput): String = {
+    response.asJson.noSpaces
+  }
+
+}
 
 
 object TestMul {
@@ -75,7 +98,11 @@ object TestMul {
     val service = new AbstractGreeterServer.Impl[R]
     val serverDispatcher = GreeterServiceWrapped.server(service)
 
-    val marshalling: TransportMarshallers[String, GreeterServiceWrapped.GreeterServiceInput, GreeterServiceWrapped.GreeterServiceOutput, String] = ??? //new DirectMarshallerImpl()
+    val marshalling: TransportMarshallers[String
+      , GreeterServiceWrapped.GreeterServiceInput
+      , GreeterServiceWrapped.GreeterServiceOutput
+      , String
+      ] = new DirectMarshallerImpl()
     val server = new ServerReceiver(serverDispatcher, marshalling)
 
     println("Testing direct RPC call...")
@@ -91,7 +118,7 @@ object TestMul {
     println(greeterClient.greet("Best", "Client"))
     println()
   }
-  
+
   class MultiplexingDemo[R[_] : ServiceResult] {
     final val c = implicitly[ServiceResult[R]]
     println(s"MultiplexingDemo: Running demo with container ${implicitly[ServiceResult[R]]}")
@@ -110,9 +137,9 @@ object TestMul {
     val marshalling: TransportMarshallers[String, MuxRequest[_], MuxResponse[_], String] = ??? //new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
     val server = new ServerReceiver(muxer, marshalling)
 
-//    println("Testing direct RPC call...")
-//    val request = marshalling.encodeRequest(Muxed(GreeterServiceWrapped.GreetInput("John", "Doe"), GreeterServiceWrapped.serviceId))
-//    println(s"RPC call performed: ${server.receive(request)}")
+    //    println("Testing direct RPC call...")
+    //    val request = marshalling.encodeRequest(Muxed(GreeterServiceWrapped.GreetInput("John", "Doe"), GreeterServiceWrapped.serviceId))
+    //    println(s"RPC call performed: ${server.receive(request)}")
 
     val network: NetworkSimulator[String, String, R] = new NetworkSimulator(server)
 
@@ -147,9 +174,9 @@ object TestMul {
     val marshalling: TransportMarshallers[String, MuxRequest[_], MuxResponse[_], String] = ??? //new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
     val server = new ServerReceiver(muxer, marshalling)
 
-//    println("Testing direct RPC call...")
-//    val request = marshalling.encodeRequest(Muxed(GreeterServiceWrapped.GreetInput("John", "Doe"), GreeterServiceWrapped.serviceId))
-//    println(s"RPC call performed: ${server.receive(request)}")
+    //    println("Testing direct RPC call...")
+    //    val request = marshalling.encodeRequest(Muxed(GreeterServiceWrapped.GreetInput("John", "Doe"), GreeterServiceWrapped.serviceId))
+    //    println(s"RPC call performed: ${server.receive(request)}")
 
     val transport: Transport[String, R[String]] = {
       val network: NetworkSimulator[String, String, R] = new NetworkSimulator(server)

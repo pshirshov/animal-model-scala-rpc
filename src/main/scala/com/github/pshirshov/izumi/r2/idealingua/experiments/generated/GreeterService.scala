@@ -3,7 +3,8 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.CirceWrappedServiceDefinition
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.OpinionatedMuxedCodec.DirectedPacket
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{Body, CirceWrappedServiceDefinition, MuxingCodecProvider}
 import io.circe._
 import io.circe.generic.semiauto._
 
@@ -70,7 +71,7 @@ object GreeterServiceWrapped
     implicit val decode: Decoder[GreetOutput] = deriveDecoder
   }
 
-/*  object GreeterServiceInput {
+  object GreeterServiceInput {
     implicit val encode: Encoder[GreeterServiceInput] = deriveEncoder
     implicit val decode: Decoder[GreeterServiceInput] = deriveDecoder
   }
@@ -79,7 +80,7 @@ object GreeterServiceWrapped
     implicit val encode: Encoder[GreeterServiceOutput] = deriveEncoder
     implicit val decode: Decoder[GreeterServiceOutput] = deriveDecoder
   }
-*/
+
 
   val serviceId =  ServiceId("GreeterService")
 
@@ -177,31 +178,31 @@ object GreeterServiceWrapped
   }
 
 
-//  override def codecProvider: MuxingCodecProvider = CodecProvider
-//
-//  object CodecProvider extends MuxingCodecProvider {
-//
-//    import io.circe._
-//    import io.circe.syntax._
-//
-//    val encoders: List[PartialFunction[AnyRef, Json]] = List(
-//      {
-//        case Muxed(v: GreeterServiceWrapped.GreeterServiceInput, _) =>
-//          Map("Input" -> Map(GreeterServiceWrapped.serviceId.value -> v.asJson)).asJson
-//        case Muxed(v: GreeterServiceWrapped.GreeterServiceOutput, _) =>
-//          Map("Output" -> Map(GreeterServiceWrapped.serviceId.value -> v.asJson)).asJson
-//      }
-//    )
-//
-//
-//    val decoders: List[PartialFunction[DirectedPacket, Decoder.Result[Muxed]]] = List(
-//      {
-//        case DirectedPacket("Input", GreeterServiceWrapped.serviceId, packet) =>
-//          packet.as[GreeterServiceInput].map(v => Muxed(v, GreeterServiceWrapped.serviceId))
-//
-//        case DirectedPacket("Output", GreeterServiceWrapped.serviceId, packet) =>
-//          packet.as[GreeterServiceOutput].map(v => Muxed(v, GreeterServiceWrapped.serviceId))
-//      }
-//    )
-//  }
+  override def codecProvider: MuxingCodecProvider = CodecProvider
+
+  object CodecProvider extends MuxingCodecProvider {
+
+    import io.circe._
+    import io.circe.syntax._
+
+    val encoders: List[PartialFunction[Body, Json]] = List(
+      {
+        case Body(v: GreeterServiceWrapped.GreeterServiceInput) =>
+          v.asJson
+        case Body(v: GreeterServiceWrapped.GreeterServiceOutput) =>
+          v.asJson
+      }
+    )
+
+
+    val decoders: List[PartialFunction[DirectedPacket, Decoder.Result[Body]]] = List(
+      {
+        case DirectedPacket("Input", GreeterServiceWrapped.serviceId, packet) =>
+          packet.as[GreeterServiceInput].map(v => Body(v))
+
+        case DirectedPacket("Output", GreeterServiceWrapped.serviceId, packet) =>
+          packet.as[GreeterServiceOutput].map(v => Body(v))
+      }
+    )
+  }
 }

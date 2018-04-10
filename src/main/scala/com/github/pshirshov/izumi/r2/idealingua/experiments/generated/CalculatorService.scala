@@ -4,7 +4,8 @@ import com.github.pshirshov.izumi.r2.idealingua
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped.{GreetInput, GreetOutput, GreeterServiceInput, GreeterServiceOutput}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.CirceWrappedServiceDefinition
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.OpinionatedMuxedCodec.DirectedPacket
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{Body, CirceWrappedServiceDefinition, MuxingCodecProvider}
 import io.circe._
 import io.circe.generic.semiauto._
 
@@ -71,7 +72,7 @@ object CalculatorServiceWrapped
     implicit val decodeTestPayload: Decoder[SumOutput] = deriveDecoder
   }
 
-/*  object CalculatorServiceInput {
+  object CalculatorServiceInput {
     implicit val encodeTestPayload: Encoder[CalculatorServiceInput] = deriveEncoder
     implicit val decodeTestPayload: Decoder[CalculatorServiceInput] = deriveDecoder
   }
@@ -80,9 +81,8 @@ object CalculatorServiceWrapped
     implicit val encodeTestPayload: Encoder[CalculatorServiceOutput] = deriveEncoder
     implicit val decodeTestPayload: Decoder[CalculatorServiceOutput] = deriveDecoder
   }
-*/
 
-  val serviceId =  ServiceId("CalculatorService")
+  val serviceId = ServiceId("CalculatorService")
 
   trait PackingDispatcher[R[_]]
     extends CalculatorService[R]
@@ -107,7 +107,7 @@ object CalculatorServiceWrapped
     import ServiceResult._
 
     override def dispatch(input: CalculatorServiceInput): Result[CalculatorServiceOutput] = {
-      dispatcher.dispatch(MuxRequest(input, toMethodId(input)) ).map {
+      dispatcher.dispatch(MuxRequest(input, toMethodId(input))).map {
         case MuxResponse(t: CalculatorServiceOutput, _) =>
           t
         case o =>
@@ -164,43 +164,45 @@ object CalculatorServiceWrapped
 
   }
 
-  def toMethodId(v: CalculatorServiceInput): Method  = {
+  def toMethodId(v: CalculatorServiceInput): Method = {
     v match {
       case _: SumInput => Method(serviceId, MethodId("sum"))
     }
   }
-  def toMethodId(v: CalculatorServiceOutput): Method  = {
+
+  def toMethodId(v: CalculatorServiceOutput): Method = {
     v match {
       case _: SumOutput => Method(serviceId, MethodId("sum"))
     }
   }
 
 
-  //  override def codecProvider: MuxingCodecProvider = CodecProvider
-//
-//  object CodecProvider extends MuxingCodecProvider {
-//    import io.circe._
-//    import io.circe.syntax._
-//
-//    val encoders: List[PartialFunction[AnyRef, Json]] = List(
-//      {
-//        case Muxed(v: CalculatorServiceWrapped.CalculatorServiceInput, _) =>
-//          Map("Input" -> Map(CalculatorServiceWrapped.serviceId.value -> v.asJson)).asJson
-//        case Muxed(v: CalculatorServiceWrapped.CalculatorServiceOutput, _) =>
-//          Map("Output" -> Map(CalculatorServiceWrapped.serviceId.value -> v.asJson)).asJson
-//      }
-//    )
-//
-//
-//    val decoders: List[PartialFunction[DirectedPacket, Decoder.Result[Muxed]]] = List(
-//      {
-//        case DirectedPacket("Input", CalculatorServiceWrapped.serviceId, packet) =>
-//          packet.as[CalculatorServiceInput].map(v => Muxed(v, CalculatorServiceWrapped.serviceId))
-//
-//        case DirectedPacket("Output", CalculatorServiceWrapped.serviceId, packet) =>
-//          packet.as[CalculatorServiceOutput].map(v => Muxed(v, CalculatorServiceWrapped.serviceId))
-//      }
-//    )
-//  }
+  override def codecProvider: MuxingCodecProvider = CodecProvider
+
+  object CodecProvider extends MuxingCodecProvider {
+
+    import io.circe._
+    import io.circe.syntax._
+
+    val encoders: List[PartialFunction[Body, Json]] = List(
+      {
+        case Body(v: CalculatorServiceWrapped.CalculatorServiceInput) =>
+          v.asJson
+        case Body(v: CalculatorServiceWrapped.CalculatorServiceOutput) =>
+          v.asJson
+      }
+    )
+
+
+    val decoders: List[PartialFunction[DirectedPacket, Decoder.Result[Body]]] = List(
+      {
+        case DirectedPacket("Input", CalculatorServiceWrapped.serviceId, packet) =>
+          packet.as[CalculatorServiceInput].map(v => Body(v))
+
+        case DirectedPacket("Output", CalculatorServiceWrapped.serviceId, packet) =>
+          packet.as[CalculatorServiceOutput].map(v => Body(v))
+      }
+    )
+  }
 
 }
