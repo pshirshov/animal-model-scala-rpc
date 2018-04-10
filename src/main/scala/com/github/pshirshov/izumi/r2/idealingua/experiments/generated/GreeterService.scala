@@ -3,7 +3,7 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.MuxingCodecProvider
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{CirceWrappedServiceDefinition, MuxingCodecProvider}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.OpinionatedMuxedCodec.DirectedPacket
 import io.circe._
 import io.circe.generic.semiauto._

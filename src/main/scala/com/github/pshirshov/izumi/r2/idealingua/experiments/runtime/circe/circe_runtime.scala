@@ -9,6 +9,11 @@ trait MuxedCodec {
   implicit val decodePolymorphic: Decoder[Muxed]
 }
 
+trait CirceWrappedServiceDefinition {
+  this: IdentifiableServiceDefinition =>
+  def codecProvider: MuxingCodecProvider
+}
+
 trait MuxingCodecProvider {
   def encoders: List[PartialFunction[Muxed, Json]]
   def decoders: List[PartialFunction[OpinionatedMuxedCodec.DirectedPacket, Decoder.Result[Muxed]]]
