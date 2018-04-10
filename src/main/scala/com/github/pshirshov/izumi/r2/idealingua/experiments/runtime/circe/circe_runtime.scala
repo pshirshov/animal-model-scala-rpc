@@ -9,10 +9,6 @@ trait CirceWrappedServiceDefinition {
   def codecProvider: MuxingCodecProvider
 }
 
-case class ReqBody(value: AnyRef) extends AnyRef
-
-case class ResBody(value: AnyRef) extends AnyRef
-
 trait MuxedCodec {
   implicit val encodePolymorphicRequest: Encoder[ReqBody]
   implicit val decodePolymorphicRequest: Decoder[ReqBody]

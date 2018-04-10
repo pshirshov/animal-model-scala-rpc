@@ -3,7 +3,7 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{CirceWrappedServiceDefinition, MuxingCodecProvider, ReqBody, ResBody}
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{CirceWrappedServiceDefinition, MuxingCodecProvider}
 import io.circe.Decoder.Result
 import io.circe._
 import io.circe.generic.semiauto._
@@ -95,7 +95,7 @@ object CalculatorServiceWrapped
         case o: SumOutput =>
           o.value
         case o =>
-          throw new TypeMismatchException(s"Unexpected input in CalculatorServiceDispatcherPacking.greet: $o", o)
+          throw new TypeMismatchException(s"Unexpected input in CalculatorServiceDispatcherPacking.sum: $o", o)
       }
     }
   }
@@ -185,14 +185,14 @@ object CalculatorServiceWrapped
 
     override def requestEncoders: List[PartialFunction[ReqBody, Json]] = List(
       {
-        case ReqBody(v: CalculatorServiceWrapped.CalculatorServiceInput) =>
+        case ReqBody(v: CalculatorServiceInput) =>
           v.asJson
       }
     )
 
     override def responseEncoders: List[PartialFunction[ResBody, Json]] = List(
       {
-        case ResBody(v: CalculatorServiceWrapped.CalculatorServiceOutput) =>
+        case ResBody(v: CalculatorServiceOutput) =>
           v.asJson
       }
     )

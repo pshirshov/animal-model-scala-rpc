@@ -2,7 +2,7 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments
 
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.impls._
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.MuxedCodec
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{MuxedCodec, OpinionatedMuxedCodec}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.{TransportMarshallers, _}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -29,40 +29,69 @@ class TransformingNetworkSimulator[I, O, R[_], RT[_]](transport: Transport[I, R[
 class SimpleMarshallerImpl(codec: MuxedCodec) extends TransportMarshallers[String, MuxRequest[_], MuxResponse[_], String] {
 
 
-//  import codec._
-//  import io.circe.syntax._
-//  import io.circe.parser._
-//
-//  override def decodeRequest(requestWire: String): MuxRequest[_] = {
-//    val parsed = parse(requestWire).flatMap(_.as[MuxRequest[_]])
-//    println(s"Request parsed: $parsed")
-//    parsed.right.get
-//  }
-//
-//  override def decodeResponse(responseWire: String): MuxResponse[_] = {
-//    val parsed = parse(responseWire).flatMap(_.as[MuxResponse[_]])
-//    println(s"Response parsed: $parsed")
-//    parsed.right.get
-//  }
-//
-//  override def encodeRequest(request: MuxRequest[_]): String = {
-//    val out = request.asJson.noSpaces
-//    println(s"Request serialized: $out")
-//    out
-//  }
-//
-//  override def encodeResponse(response: MuxResponse[_]): String = {
-//    val out = response.asJson.noSpaces
-//    println(s"Response serialized: $out")
-//    out
-//  }
-  override def decodeRequest(requestWire: String): MuxRequest[_] = ???
+  import codec._
+  import io.circe.syntax._
+  import io.circe.parser._
 
-  override def encodeRequest(request: MuxRequest[_]): String = ???
+  override def decodeRequest(requestWire: String): MuxRequest[_] = {
+    val parsed = parse(requestWire).flatMap {
+      v => v.asObject match {
+        case Some(o) =>
+          Right(o)
+        case None =>
+          throw new UnparseableDataException(s"Not a json object: $requestWire")
+      }
+    }.map {
+      r =>
+        println(r.apply("body"), r.apply("body").map(_.as[ReqBody]))
 
-  override def decodeResponse(responseWire: String): MuxResponse[_] = ???
+        MuxRequest[AnyRef](
+          r.apply("body").map(_.as[ReqBody].right.get.value).get
+          , Method(ServiceId(r.apply("service").flatMap(_.asString).get)
+            , MethodId(r.apply("method").flatMap(_.asString).get))
+        )
+    }
+    println(s"Response parsed: $parsed")
+    parsed.right.get
+  }
 
-  override def encodeResponse(response: MuxResponse[_]): String = ???
+  override def decodeResponse(responseWire: String): MuxResponse[_] = {
+    val parsed = parse(responseWire).flatMap {
+      v => v.asObject match {
+        case Some(o) =>
+          Right(o)
+        case None =>
+          throw new UnparseableDataException(s"Not a json object: $responseWire")
+      }
+    }.map {
+      r =>
+        println(r.apply("body"), r.apply("body").map(_.as[ResBody]))
+        MuxResponse[AnyRef](
+          r.apply("body").map(_.as[ResBody].right.get.value).get
+          , Method(ServiceId(r.apply("service").flatMap(_.asString).get)
+            , MethodId(r.apply("method").flatMap(_.asString).get))
+        )
+    }
+    println(s"Response parsed: $parsed")
+    parsed.right.get
+  }
+
+  override def encodeRequest(request: MuxRequest[_]): String = {
+    val out = request.body.asJson
+    val tree = Map("method" -> request.method.methodId.value, "service" -> request.method.service.value).asJson
+    val str = tree.mapObject(_.add("body", out)).noSpaces
+    println(s"Request serialized: $str")
+    str
+  }
+
+  override def encodeResponse(response: MuxResponse[_]): String = {
+    val out = response.body.asJson
+    val tree = Map("method" -> response.method.methodId.value, "service" -> response.method.service.value).asJson
+    val str = tree.mapObject(_.add("body", out)).noSpaces
+    println(s"Response serialized: $str")
+    str
+  }
+
 }
 
 class DirectMarshallerImpl() extends TransportMarshallers[String, GreeterServiceWrapped.GreeterServiceInput, GreeterServiceWrapped.GreeterServiceOutput, String] {
@@ -134,7 +163,12 @@ object TestMul {
 
     // all the type annotations below are optional, infering works
     val codecs = List(GreeterServiceWrapped, CalculatorServiceWrapped)
-    val marshalling: TransportMarshallers[String, MuxRequest[_], MuxResponse[_], String] = ??? //new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
+    val marshalling: TransportMarshallers[
+      String
+      , MuxRequest[_]
+      , MuxResponse[_]
+      , String] =
+      new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
     val server = new ServerReceiver(muxer, marshalling)
 
     //    println("Testing direct RPC call...")
@@ -171,7 +205,12 @@ object TestMul {
 
     // all the type annotations below are optional, infering works
     val codecs = List(GreeterServiceWrapped, CalculatorServiceWrapped)
-    val marshalling: TransportMarshallers[String, MuxRequest[_], MuxResponse[_], String] = ??? //new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
+    val marshalling: TransportMarshallers[
+      String
+      , MuxRequest[_]
+      , MuxResponse[_]
+      , String
+      ] = new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
     val server = new ServerReceiver(muxer, marshalling)
 
     //    println("Testing direct RPC call...")
