@@ -26,7 +26,7 @@ trait GreeterServiceWrapped[R[_], C] extends WithResultType[R] with WithContext[
 
   import GreeterServiceWrapped._
 
-  def greet(input: GreetInput): Result[GreetOutput]
+  def greet(ctx: C, input: GreetInput): Result[GreetOutput]
 }
 
 object GreeterServiceWrapped
@@ -55,12 +55,12 @@ object GreeterServiceWrapped
   }
 
 
-  override def server[R[_] : ServiceResult, C](service: GreeterService[R]): Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] = {
+  override def server[R[_] : ServiceResult, C](service: GreeterService[R]): Dispatcher[InContext[GreeterServiceInput, C], GreeterServiceOutput, R] = {
     new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
 
-  override def serverUnsafe[R[_] : ServiceResult, C](service: GreeterService[R]): UnsafeDispatcher[GreeterServiceInput, GreeterServiceOutput, R] = {
+  override def serverUnsafe[R[_] : ServiceResult, C](service: GreeterService[R]): UnsafeDispatcher[C, R] = {
     new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
@@ -134,29 +134,29 @@ object GreeterServiceWrapped
 
   trait UnpackingDispatcher[R[_], C]
     extends GreeterServiceWrapped[R, C]
-      with Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]
-      with UnsafeDispatcher[GreeterServiceInput, GreeterServiceOutput, R]
+      with Dispatcher[InContext[GreeterServiceInput, C], GreeterServiceOutput, R]
+      with UnsafeDispatcher[C, R]
       with WithResult[R] {
     def service: GreeterService[R]
 
-    def greet(input: GreetInput): Result[GreetOutput] = {
+    def greet(context: Context, input: GreetInput): Result[GreetOutput] = {
       val result = service.greet(input.name, input.surname)
       _ServiceResult.map(result)(GreetOutput.apply)
     }
 
-    def dispatch(input: GreeterServiceInput): Result[GreeterServiceOutput] = {
+    def dispatch(input: InContext[GreeterServiceInput, Context]): Result[GreeterServiceOutput] = {
       input match {
-        case v: GreetInput =>
-          _ServiceResult.map(greet(v))(v => v) // upcast
+        case InContext(v: GreetInput, c) =>
+          _ServiceResult.map(greet(c, v))(v => v) // upcast
       }
     }
 
     override def identifier: ServiceId = serviceId
 
-    override def dispatchUnsafe(input: InContext[MuxRequest[_]]): Option[Result[MuxResponse[_]]] = {
+    override def dispatchUnsafe(input: InContext[MuxRequest[_], Context]): Option[Result[MuxResponse[_]]] = {
       input.value.v match {
         case v: GreeterServiceInput =>
-          Option(_ServiceResult.map(dispatch(v))(v => MuxResponse(v, toMethodId(v))))
+          Option(_ServiceResult.map(dispatch(InContext(v, input.context)))(v => MuxResponse(v, toMethodId(v))))
 
         case _ =>
           None

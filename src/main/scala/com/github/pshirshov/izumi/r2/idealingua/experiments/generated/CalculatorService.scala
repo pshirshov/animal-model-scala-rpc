@@ -55,12 +55,12 @@ object CalculatorServiceWrapped
     client(new SafeToUnsafeBridge[R](dispatcher))
   }
 
-  override def server[R[_] : ServiceResult, C](service: CalculatorService[R]): Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] = {
+  override def server[R[_] : ServiceResult, C](service: CalculatorService[R]): Dispatcher[InContext[CalculatorServiceInput, C], CalculatorServiceOutput, R] = {
     new idealingua.experiments.generated.CalculatorServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
 
-  override def serverUnsafe[R[_] : ServiceResult, C](service: CalculatorService[R]): UnsafeDispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] = {
+  override def serverUnsafe[R[_] : ServiceResult, C](service: CalculatorService[R]): UnsafeDispatcher[C, R] = {
     new idealingua.experiments.generated.CalculatorServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
@@ -129,8 +129,8 @@ object CalculatorServiceWrapped
 
   trait UnpackingDispatcher[R[_], C]
     extends CalculatorServiceWrapped[R, C]
-      with Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
-      with UnsafeDispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
+      with Dispatcher[InContext[CalculatorServiceInput, C], CalculatorServiceOutput, R]
+      with UnsafeDispatcher[C, R]
       with WithResult[R] {
     def service: CalculatorService[R]
 
@@ -139,19 +139,19 @@ object CalculatorServiceWrapped
       _ServiceResult.map(result)(SumOutput.apply)
     }
 
-    def dispatch(input: CalculatorServiceInput): Result[CalculatorServiceOutput] = {
+    def dispatch(input: InContext[CalculatorServiceInput, C]): Result[CalculatorServiceOutput] = {
       input match {
-        case v: SumInput =>
-          _ServiceResult.map(sum(???, v))(v => v) // upcast
+        case InContext(v: SumInput, c) =>
+          _ServiceResult.map(sum(c, v))(v => v) // upcast
       }
     }
 
     override def identifier: ServiceId = serviceId
 
-    override def dispatchUnsafe(input: InContext[MuxRequest[_]]): Option[Result[MuxResponse[_]]] = {
-      input.value match {
+    override def dispatchUnsafe(input: InContext[MuxRequest[_], C]): Option[Result[MuxResponse[_]]] = {
+      input.value.v match {
         case v: CalculatorServiceInput =>
-          Option(_ServiceResult.map(dispatch(v))(v => MuxResponse(v, toMethodId(v))))
+          Option(_ServiceResult.map(dispatch(InContext(v, input.context)))(v => MuxResponse(v, toMethodId(v))))
 
         case _ =>
           None

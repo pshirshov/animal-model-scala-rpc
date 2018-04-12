@@ -10,8 +10,8 @@ import scala.language.{higherKinds, implicitConversions}
 import scala.util.Try
 
 
-case class Context(ip: String)
-case class InContext[V <: AnyRef](value: V, context: Context)
+case class DummyContext(ip: String)
+case class InContext[V <: AnyRef, Ctx](value: V, context: Ctx)
 
 
 class NetworkSimulator[I, IC, O, R[_]](server: Receiver[IC, O, R], contextProvider: I => IC) extends Transport[I, R[O]] {
@@ -164,18 +164,18 @@ object TestMul {
     final val serverMuxer = {
       val greeterService = new AbstractGreeterServer.Impl[R]
       val calculatorService = new AbstractCalculatorServer.Impl[R]
-      val greeterDispatcher = GreeterServiceWrapped.serverUnsafe(greeterService)
-      val calculatorDispatcher = CalculatorServiceWrapped.serverUnsafe(calculatorService)
+      val greeterDispatcher = GreeterServiceWrapped.serverUnsafe[R, DummyContext](greeterService)
+      val calculatorDispatcher = CalculatorServiceWrapped.serverUnsafe[R, DummyContext](calculatorService)
       val dispatchers = List(greeterDispatcher, calculatorDispatcher)
-      new ServerMultiplexor[R](dispatchers)
+      new ServerMultiplexor(dispatchers)
     }
 
     final val codecs = List(GreeterServiceWrapped, CalculatorServiceWrapped)
 
     final val server = {
       val serverMarshalling: TransportMarshallers[
-        InContext[String]
-        , InContext[MuxRequest[_]]
+        InContext[String, DummyContext]
+        , InContext[MuxRequest[_], DummyContext]
         , MuxResponse[_]
         , String] = ???
       //new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
@@ -186,7 +186,7 @@ object TestMul {
     //    val request = marshalling.encodeRequest(Muxed(GreeterServiceWrapped.GreetInput("John", "Doe"), GreeterServiceWrapped.serviceId))
     //    println(s"RPC call performed: ${server.receive(request)}")
 
-    val network = new NetworkSimulator(server, (p: String) => InContext(p, Context("127.0.0.1")))
+    val network = new NetworkSimulator(server, (p: String) => InContext(p, DummyContext("127.0.0.1")))
 
 
 
