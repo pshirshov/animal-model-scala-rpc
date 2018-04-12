@@ -99,17 +99,17 @@ class SimpleMarshallerImpl(codec: MuxedCodec) extends TransportMarshallers[Strin
 
 }
 
-class DirectMarshallerImpl() extends TransportMarshallers[String, GreeterServiceWrapped.GreeterServiceInput, GreeterServiceWrapped.GreeterServiceOutput, String] {
+class DirectMarshallerImpl() extends TransportMarshallers[InContext[String, Unit], InContext[GreeterServiceWrapped.GreeterServiceInput, Unit], GreeterServiceWrapped.GreeterServiceOutput, String] {
 
   import io.circe.syntax._
   import io.circe.parser._
 
-  override def decodeRequest(requestWire: String): GreeterServiceWrapped.GreeterServiceInput = {
-    parse(requestWire).flatMap(_.as[GreeterServiceWrapped.GreeterServiceInput]).right.get
+  override def decodeRequest(requestWire: InContext[String, Unit]): InContext[GreeterServiceWrapped.GreeterServiceInput, Unit] = {
+    InContext(parse(requestWire.value).flatMap(_.as[GreeterServiceWrapped.GreeterServiceInput]).right.get, requestWire.context)
   }
 
-  override def encodeRequest(request: GreeterServiceWrapped.GreeterServiceInput): String = {
-    request.asJson.noSpaces
+  override def encodeRequest(request: InContext[GreeterServiceWrapped.GreeterServiceInput, Unit]): InContext[String, Unit] = {
+    InContext(request.value.asJson.noSpaces, request.context)
   }
 
   override def decodeResponse(responseWire: String): GreeterServiceWrapped.GreeterServiceOutput = {
@@ -127,33 +127,46 @@ object TestMul {
   // all the type annotations below are optional, infering works
 
 
-  //  class SingleServiceDemo[R[_] : ServiceResult] {
-//    println(s"SingleServiceDemo: Running demo with container ${implicitly[ServiceResult[R]]}")
-//    println()
-//
-//    val service = new AbstractGreeterServer.Impl[R]
-//    val serverDispatcher = GreeterServiceWrapped.server(service)
-//
-//    val marshalling: TransportMarshallers[String
-//      , GreeterServiceWrapped.GreeterServiceInput
-//      , GreeterServiceWrapped.GreeterServiceOutput
-//      , String
-//      ] = new DirectMarshallerImpl()
-//    val server = new ServerReceiver(serverDispatcher, marshalling)
-//
-//    println("Testing direct RPC call...")
-//    val request = marshalling.encodeRequest(GreeterServiceWrapped.GreetInput("John", "Doe"))
-//    println(s"RPC call performed: ${server.receive(request)}")
-//
-//    val network = new NetworkSimulator(server, v => v)
-//
-//    val clientDispatcher = new ClientDispatcher(network, marshalling)
-//    val greeterClient = GreeterServiceWrapped.client(clientDispatcher)
-//    println()
-//    println("Testing client RPC calls...")
-//    println(greeterClient.greet("Best", "Client"))
-//    println()
-//  }
+    class SingleServiceDemo[R[_] : ServiceResult] {
+    println(s"SingleServiceDemo: Running demo with container ${implicitly[ServiceResult[R]]}")
+    println()
+
+
+    final val server = {
+      val service = new AbstractGreeterServer.Impl[R]
+      val serverDispatcher = GreeterServiceWrapped.server[R, Unit](service)
+
+      val marshalling: TransportMarshallers[
+        InContext[String, Unit]
+        , InContext[GreeterServiceWrapped.GreeterServiceInput, Unit]
+        , GreeterServiceWrapped.GreeterServiceOutput
+        , String
+        ] = new DirectMarshallerImpl()
+      val r = new ServerReceiver(serverDispatcher, marshalling)
+      println("Testing direct RPC call...")
+      val request = marshalling.encodeRequest(InContext(GreeterServiceWrapped.GreetInput("John", "Doe"), ()))
+      println(s"RPC call performed: ${r.receive(request)}")
+      r
+    }
+
+
+    val network = new NetworkSimulator(server, (p: String) => InContext(p, ()))
+
+    final val clientDispatcher = {
+      val marshalling: TransportMarshallers[
+        String
+        , GreeterServiceWrapped.GreeterServiceInput
+        , GreeterServiceWrapped.GreeterServiceOutput
+        , String
+        ] = ???
+      new ClientDispatcher(network, marshalling)
+    }
+    final val greeterClient = GreeterServiceWrapped.client(clientDispatcher)
+    println()
+    println("Testing client RPC calls...")
+    println(greeterClient.greet("Best", "Client"))
+    println()
+  }
 
   class MultiplexingDemo[R[_] : ServiceResult] {
     final val c = implicitly[ServiceResult[R]]
@@ -179,12 +192,14 @@ object TestMul {
         , MuxResponse[_]
         , String] = ???
       //new SimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
-      new ServerReceiver(serverMuxer, serverMarshalling)
+      val out = new ServerReceiver(serverMuxer, serverMarshalling)
+      println("Testing direct RPC call...")
+      val request = serverMarshalling.encodeRequest(InContext(MuxRequest(GreeterServiceWrapped.GreetInput("John", "Doe"), Method(GreeterServiceWrapped.serviceId, MethodId("greet"))),  DummyContext("127.0.0.1")))
+      println(s"RPC call performed: ${out.receive(request)}")
+      out
     }
 
-    //    println("Testing direct RPC call...")
-    //    val request = marshalling.encodeRequest(Muxed(GreeterServiceWrapped.GreetInput("John", "Doe"), GreeterServiceWrapped.serviceId))
-    //    println(s"RPC call performed: ${server.receive(request)}")
+
 
     val network = new NetworkSimulator(server, (p: String) => InContext(p, DummyContext("127.0.0.1")))
 
