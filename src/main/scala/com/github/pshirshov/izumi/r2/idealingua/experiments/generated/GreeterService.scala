@@ -10,8 +10,12 @@ import io.circe.generic.semiauto._
 
 import scala.language.{higherKinds, implicitConversions}
 
-trait GreeterService[R[_]] extends WithResultType[R] {
+trait GreeterServiceClient[R[_]] extends WithResultType[R] {
   def greet(name: String, surname: String): Result[String]
+}
+
+trait GreeterService[R[_], C] extends WithResultType[R] {
+  def greet(ctx: C, name: String, surname: String): Result[String]
 }
 
 trait GreeterServiceCtx[R[_], C] extends WithResultType[R] with WithContext[C] {
@@ -47,24 +51,25 @@ object GreeterServiceWrapped
   override type Input = GreeterServiceInput
   override type Output = GreeterServiceOutput
 
-  override type Service[R[_]] = GreeterService[R]
+  override type ServiceServer[R[_], C] = GreeterService[R, C]
+  override type ServiceClient[R[_]] = GreeterServiceClient[R]
 
 
-  override def client[R[_] : ServiceResult](dispatcher: Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]): GreeterService[R] = {
+  override def client[R[_] : ServiceResult](dispatcher: Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]): GreeterServiceClient[R] = {
     new generated.GreeterServiceWrapped.PackingDispatcher.Impl[R](dispatcher)
   }
 
 
-  override def server[R[_] : ServiceResult, C](service: GreeterService[R]): Dispatcher[InContext[GreeterServiceInput, C], GreeterServiceOutput, R] = {
+  override def server[R[_] : ServiceResult, C](service: GreeterService[R, C]): Dispatcher[InContext[GreeterServiceInput, C], GreeterServiceOutput, R] = {
     new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
 
-  override def serverUnsafe[R[_] : ServiceResult, C](service: GreeterService[R]): UnsafeDispatcher[C, R] = {
+  override def serverUnsafe[R[_] : ServiceResult, C](service: GreeterService[R, C]): UnsafeDispatcher[C, R] = {
     new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
-  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[_], MuxResponse[_], R]): GreeterService[R] = {
+  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[_], MuxResponse[_], R]): GreeterServiceClient[R] = {
     client(new SafeToUnsafeBridge[R](dispatcher))
   }
 
@@ -92,7 +97,7 @@ object GreeterServiceWrapped
   val serviceId =  ServiceId("GreeterService")
 
   trait PackingDispatcher[R[_]]
-    extends GreeterService[R]
+    extends GreeterServiceClient[R]
       with WithResult[R] {
     def dispatcher: Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]
 
@@ -137,10 +142,10 @@ object GreeterServiceWrapped
       with Dispatcher[InContext[GreeterServiceInput, C], GreeterServiceOutput, R]
       with UnsafeDispatcher[C, R]
       with WithResult[R] {
-    def service: GreeterService[R]
+    def service: GreeterService[R, C]
 
     def greet(context: Context, input: GreetInput): Result[GreetOutput] = {
-      val result = service.greet(input.name, input.surname)
+      val result = service.greet(context, input.name, input.surname)
       _ServiceResult.map(result)(GreetOutput.apply)
     }
 
@@ -178,7 +183,7 @@ object GreeterServiceWrapped
 
   object UnpackingDispatcher {
 
-    class Impl[R[_] : ServiceResult, C](val service: GreeterService[R]) extends UnpackingDispatcher[R, C] {
+    class Impl[R[_] : ServiceResult, C](val service: GreeterService[R, C]) extends UnpackingDispatcher[R, C] {
       override protected def _ServiceResult: ServiceResult[R] = implicitly
     }
 

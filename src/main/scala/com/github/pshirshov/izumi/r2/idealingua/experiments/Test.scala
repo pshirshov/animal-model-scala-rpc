@@ -133,8 +133,8 @@ object TestMul {
 
 
     final val server = {
-      val service = new AbstractGreeterServer.Impl[R]
-      val serverDispatcher = GreeterServiceWrapped.server[R, Unit](service)
+      val service = new AbstractGreeterServer.Impl[R, Unit]
+      val serverDispatcher = GreeterServiceWrapped.server(service)
 
       val marshalling: TransportMarshallers[
         InContext[String, Unit]
@@ -175,10 +175,10 @@ object TestMul {
 
 
     final val serverMuxer = {
-      val greeterService = new AbstractGreeterServer.Impl[R]
-      val calculatorService = new AbstractCalculatorServer.Impl[R]
-      val greeterDispatcher = GreeterServiceWrapped.serverUnsafe[R, DummyContext](greeterService)
-      val calculatorDispatcher = CalculatorServiceWrapped.serverUnsafe[R, DummyContext](calculatorService)
+      val greeterService = new AbstractGreeterServer.Impl[R, DummyContext]
+      val calculatorService = new AbstractCalculatorServer.Impl[R, DummyContext]
+      val greeterDispatcher = GreeterServiceWrapped.serverUnsafe(greeterService)
+      val calculatorDispatcher = CalculatorServiceWrapped.serverUnsafe(calculatorService)
       val dispatchers = List(greeterDispatcher, calculatorDispatcher)
       new ServerMultiplexor(dispatchers)
     }
@@ -231,10 +231,10 @@ object TestMul {
     println()
 
     final val serverMuxer = {
-      val greeterService = new AbstractGreeterServer.Impl[R]
-      val calculatorService = new AbstractCalculatorServer.Impl[R]
-      val greeterDispatcher = GreeterServiceWrapped.serverUnsafe[R, DummyContext](greeterService)
-      val calculatorDispatcher = CalculatorServiceWrapped.serverUnsafe[R, DummyContext](calculatorService)
+      val greeterService = new AbstractGreeterServer.Impl[R, DummyContext]
+      val calculatorService = new AbstractCalculatorServer.Impl[R, DummyContext]
+      val greeterDispatcher = GreeterServiceWrapped.serverUnsafe(greeterService)
+      val calculatorDispatcher = CalculatorServiceWrapped.serverUnsafe(calculatorService)
       val dispatchers = List(greeterDispatcher, calculatorDispatcher)
       new ServerMultiplexor(dispatchers)
     }
