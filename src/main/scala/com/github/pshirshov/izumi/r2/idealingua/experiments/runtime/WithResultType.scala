@@ -12,3 +12,7 @@ trait WithResult[R[_]] extends WithResultType[R] {
 
   protected def _Result[T](value: => T): R[T] = _ServiceResult.pure(value)
 }
+
+trait WithContext[C] {
+  type Context = C
+}

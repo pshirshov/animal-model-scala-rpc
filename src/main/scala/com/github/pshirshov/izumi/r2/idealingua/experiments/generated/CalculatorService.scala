@@ -1,7 +1,7 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 
 import com.github.pshirshov.izumi.r2.idealingua
-import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
+import com.github.pshirshov.izumi.r2.idealingua.experiments.{InContext, generated}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{CirceWrappedServiceDefinition, CursorForMethod, MuxingCodecProvider}
 import io.circe.Decoder.Result
@@ -14,12 +14,16 @@ trait CalculatorService[R[_]] extends WithResultType[R] {
   def sum(a: Int, b: Int): Result[Int]
 }
 
+trait CalculatorServiceCtx[R[_], C] extends WithResultType[R] with WithContext[C] {
+  def sum(ctx: C, a: Int, b: Int): Result[Int]
+}
 
-trait CalculatorServiceWrapped[R[_]] extends WithResultType[R] {
+
+trait CalculatorServiceWrapped[R[_], C] extends WithResultType[R] {
 
   import CalculatorServiceWrapped._
 
-  def sum(input: SumInput): Result[SumOutput]
+  def sum(ctx: C, input: SumInput): Result[SumOutput]
 }
 
 object CalculatorServiceWrapped
@@ -51,13 +55,13 @@ object CalculatorServiceWrapped
     client(new SafeToUnsafeBridge[R](dispatcher))
   }
 
-  override def server[R[_] : ServiceResult](service: CalculatorService[R]): Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] = {
-    new idealingua.experiments.generated.CalculatorServiceWrapped.UnpackingDispatcher.Impl[R](service)
+  override def server[R[_] : ServiceResult, C](service: CalculatorService[R]): Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] = {
+    new idealingua.experiments.generated.CalculatorServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
 
-  override def serverUnsafe[R[_] : ServiceResult](service: CalculatorService[R]): UnsafeDispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] = {
-    new idealingua.experiments.generated.CalculatorServiceWrapped.UnpackingDispatcher.Impl[R](service)
+  override def serverUnsafe[R[_] : ServiceResult, C](service: CalculatorService[R]): UnsafeDispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] = {
+    new idealingua.experiments.generated.CalculatorServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
 
@@ -123,14 +127,14 @@ object CalculatorServiceWrapped
 
   }
 
-  trait UnpackingDispatcher[R[_]]
-    extends CalculatorServiceWrapped[R]
+  trait UnpackingDispatcher[R[_], C]
+    extends CalculatorServiceWrapped[R, C]
       with Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
       with UnsafeDispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
       with WithResult[R] {
     def service: CalculatorService[R]
 
-    def sum(input: SumInput): Result[SumOutput] = {
+    def sum(ctx: C, input: SumInput): Result[SumOutput] = {
       val result = service.sum(input.a, input.b)
       _ServiceResult.map(result)(SumOutput.apply)
     }
@@ -138,14 +142,14 @@ object CalculatorServiceWrapped
     def dispatch(input: CalculatorServiceInput): Result[CalculatorServiceOutput] = {
       input match {
         case v: SumInput =>
-          _ServiceResult.map(sum(v))(v => v) // upcast
+          _ServiceResult.map(sum(???, v))(v => v) // upcast
       }
     }
 
     override def identifier: ServiceId = serviceId
 
-    override def dispatchUnsafe(input: MuxRequest[_]): Option[Result[MuxResponse[_]]] = {
-      input.v match {
+    override def dispatchUnsafe(input: InContext[MuxRequest[_]]): Option[Result[MuxResponse[_]]] = {
+      input.value match {
         case v: CalculatorServiceInput =>
           Option(_ServiceResult.map(dispatch(v))(v => MuxResponse(v, toMethodId(v))))
 
@@ -157,7 +161,7 @@ object CalculatorServiceWrapped
 
   object UnpackingDispatcher {
 
-    class Impl[R[_] : ServiceResult](val service: CalculatorService[R]) extends UnpackingDispatcher[R] {
+    class Impl[R[_] : ServiceResult, C](val service: CalculatorService[R]) extends UnpackingDispatcher[R, C] {
       override protected def _ServiceResult: ServiceResult[R] = implicitly
     }
 

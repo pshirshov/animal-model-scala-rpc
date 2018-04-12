@@ -23,15 +23,15 @@ trait TransportMarshallers[RequestWire, Request, Response, ResponseWire] {
 class ServerReceiver[RequestWire, Request, Response, ResponseWire, R[_] : ServiceResult]
 (
   dispatcher: Dispatcher[Request, Response, R]
-  , bindings: TransportMarshallers[RequestWire, Request, Response, ResponseWire]
+  , codec: TransportMarshallers[RequestWire, Request, Response, ResponseWire]
 ) extends Receiver[RequestWire, ResponseWire, R] with WithResult[R] {
   override protected def _ServiceResult: ServiceResult[R] = implicitly
 
   def receive(request: RequestWire): R[ResponseWire] = {
     import ServiceResult._
-    _Result(bindings.decodeRequest(request))
+    _Result(codec.decodeRequest(request))
       .flatMap(dispatcher.dispatch)
-      .map(bindings.encodeResponse)
+      .map(codec.encodeResponse)
   }
 }
 
@@ -39,15 +39,15 @@ class ServerReceiver[RequestWire, Request, Response, ResponseWire, R[_] : Servic
 class ClientDispatcher[RequestWire, Request, Response, ResponseWire, R[_] : ServiceResult]
 (
   transport: Transport[RequestWire, R[ResponseWire]]
-  , bindings: TransportMarshallers[RequestWire, Request, Response, ResponseWire]
+  , codec: TransportMarshallers[RequestWire, Request, Response, ResponseWire]
 ) extends Dispatcher[Request, Response, R] with WithResult[R] {
   override protected def _ServiceResult: ServiceResult[R] = implicitly
 
   def dispatch(input: Request): Result[Response] = {
     import ServiceResult._
-    _Result(bindings.encodeRequest(input))
+    _Result(codec.encodeRequest(input))
       .flatMap(transport.send)
-      .map(bindings.decodeResponse)
+      .map(codec.decodeResponse)
   }
 }
 

@@ -1,11 +1,13 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.runtime
 
+import com.github.pshirshov.izumi.r2.idealingua.experiments.InContext
+
 import scala.language.higherKinds
 
 trait UnsafeDispatcher[In, Out, R[_]] extends WithResultType[R] {
   def identifier: ServiceId
 
-  def dispatchUnsafe(input: MuxRequest[_]): Option[Result[MuxResponse[_]]]
+  def dispatchUnsafe(input: InContext[MuxRequest[_]]): Option[Result[MuxResponse[_]]]
 }
 
 case class Method(service: ServiceId, methodId: MethodId)
@@ -28,8 +30,8 @@ case class MethodId(value: String) extends AnyVal
 
 
 
-class ServerMultiplexor[R[_]](dispatchers: List[UnsafeDispatcher[_, _, R]]) extends Dispatcher[MuxRequest[_], MuxResponse[_], R] {
-  override def dispatch(input: MuxRequest[_]): Result[MuxResponse[_]] = {
+class ServerMultiplexor[R[_]](dispatchers: List[UnsafeDispatcher[_, _, R]]) extends Dispatcher[InContext[MuxRequest[_]], MuxResponse[_], R] {
+  override def dispatch(input: InContext[MuxRequest[_]]): Result[MuxResponse[_]] = {
     dispatchers.foreach {
       d =>
         d.dispatchUnsafe(input) match {

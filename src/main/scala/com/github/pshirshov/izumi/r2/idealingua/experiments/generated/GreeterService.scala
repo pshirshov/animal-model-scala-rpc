@@ -1,7 +1,7 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 
 import com.github.pshirshov.izumi.r2.idealingua
-import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
+import com.github.pshirshov.izumi.r2.idealingua.experiments.{InContext, generated}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe._
 import io.circe.Decoder.Result
@@ -14,8 +14,15 @@ trait GreeterService[R[_]] extends WithResultType[R] {
   def greet(name: String, surname: String): Result[String]
 }
 
+trait GreeterServiceCtx[R[_], C] extends WithResultType[R] with WithContext[C] {
+  def greet(context: C, name: String, surname: String): Result[String]
+}
 
-trait GreeterServiceWrapped[R[_]] extends WithResultType[R] {
+
+
+
+
+trait GreeterServiceWrapped[R[_], C] extends WithResultType[R] with WithContext[C] {
 
   import GreeterServiceWrapped._
 
@@ -48,13 +55,13 @@ object GreeterServiceWrapped
   }
 
 
-  override def server[R[_] : ServiceResult](service: GreeterService[R]): Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] = {
-    new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R](service)
+  override def server[R[_] : ServiceResult, C](service: GreeterService[R]): Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] = {
+    new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
 
-  override def serverUnsafe[R[_] : ServiceResult](service: GreeterService[R]): UnsafeDispatcher[GreeterServiceInput, GreeterServiceOutput, R] = {
-    new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R](service)
+  override def serverUnsafe[R[_] : ServiceResult, C](service: GreeterService[R]): UnsafeDispatcher[GreeterServiceInput, GreeterServiceOutput, R] = {
+    new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
   override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[_], MuxResponse[_], R]): GreeterService[R] = {
@@ -125,8 +132,8 @@ object GreeterServiceWrapped
 
   }
 
-  trait UnpackingDispatcher[R[_]]
-    extends GreeterServiceWrapped[R]
+  trait UnpackingDispatcher[R[_], C]
+    extends GreeterServiceWrapped[R, C]
       with Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]
       with UnsafeDispatcher[GreeterServiceInput, GreeterServiceOutput, R]
       with WithResult[R] {
@@ -146,8 +153,8 @@ object GreeterServiceWrapped
 
     override def identifier: ServiceId = serviceId
 
-    override def dispatchUnsafe(input: MuxRequest[_]): Option[Result[MuxResponse[_]]] = {
-      input.v match {
+    override def dispatchUnsafe(input: InContext[MuxRequest[_]]): Option[Result[MuxResponse[_]]] = {
+      input.value.v match {
         case v: GreeterServiceInput =>
           Option(_ServiceResult.map(dispatch(v))(v => MuxResponse(v, toMethodId(v))))
 
@@ -171,7 +178,7 @@ object GreeterServiceWrapped
 
   object UnpackingDispatcher {
 
-    class Impl[R[_] : ServiceResult](val service: GreeterService[R]) extends UnpackingDispatcher[R] {
+    class Impl[R[_] : ServiceResult, C](val service: GreeterService[R]) extends UnpackingDispatcher[R, C] {
       override protected def _ServiceResult: ServiceResult[R] = implicitly
     }
 
