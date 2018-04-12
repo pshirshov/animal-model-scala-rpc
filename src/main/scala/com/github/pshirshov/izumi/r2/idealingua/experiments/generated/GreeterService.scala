@@ -1,7 +1,7 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 
 import com.github.pshirshov.izumi.r2.idealingua
-import com.github.pshirshov.izumi.r2.idealingua.experiments.{InContext, generated}
+import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe._
 import io.circe.Decoder.Result

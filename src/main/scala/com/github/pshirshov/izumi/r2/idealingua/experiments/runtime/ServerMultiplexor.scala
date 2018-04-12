@@ -1,6 +1,5 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.runtime
 
-import com.github.pshirshov.izumi.r2.idealingua.experiments.InContext
 
 import scala.language.higherKinds
 
@@ -19,13 +18,14 @@ case class ResBody(value: AnyRef) extends AnyRef
 case class MuxResponse[T <: AnyRef](v: T, method: Method) {
   def body: ResBody = ResBody(v)
 }
+
 case class MuxRequest[T <: AnyRef](v: T, method: Method) {
   def body: ReqBody = ReqBody(v)
 }
 
 case class ServiceId(value: String) extends AnyVal
-case class MethodId(value: String) extends AnyVal
 
+case class MethodId(value: String) extends AnyVal
 
 
 class ServerMultiplexor[R[_], Ctx](dispatchers: List[UnsafeDispatcher[Ctx, R]]) extends Dispatcher[InContext[MuxRequest[_], Ctx], MuxResponse[_], R] {

@@ -1,6 +1,5 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.runtime
 
-import com.github.pshirshov.izumi.r2.idealingua.experiments.InContext
 
 import scala.language.higherKinds
 
