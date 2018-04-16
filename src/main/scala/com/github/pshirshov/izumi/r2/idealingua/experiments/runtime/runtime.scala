@@ -3,7 +3,7 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.runtime
 
 import scala.language.{higherKinds, implicitConversions}
 
-case class InContext[V <: AnyRef, Ctx](value: V, context: Ctx)
+case class InContext[V, Ctx](value: V, context: Ctx)
 
 
 trait Transport[RequestWire, ResponseWire] {

@@ -19,9 +19,9 @@ trait CalculatorService[R[_], C] extends WithResultType[R] {
   def sum(ctx: C, a: Int, b: Int): Result[Int]
 }
 
-trait CalculatorServiceCtx[R[_], C] extends WithResultType[R] with WithContext[C] {
-  def sum(ctx: C, a: Int, b: Int): Result[Int]
-}
+//trait CalculatorServiceCtx[R[_], C] extends WithResultType[R] with WithContext[C] {
+//  def sum(ctx: C, a: Int, b: Int): Result[Int]
+//}
 
 
 trait CalculatorServiceWrapped[R[_], C] extends WithResultType[R] {
@@ -37,13 +37,13 @@ object CalculatorServiceWrapped
     with WrappedUnsafeServiceDefinition
     with CirceWrappedServiceDefinition {
 
-  sealed trait CalculatorServiceInput
+  sealed trait CalculatorServiceInput extends AnyRef
 
   case class SumInput(a: Int, b: Int) extends CalculatorServiceInput
 
-  sealed trait CalculatorServiceOutput
+  sealed trait CalculatorServiceOutput extends Any
 
-  case class SumOutput(value: Int) extends CalculatorServiceOutput
+  case class SumOutput(value: Int) extends AnyVal with CalculatorServiceOutput
 
   override type Input = CalculatorServiceInput
   override type Output = CalculatorServiceOutput
