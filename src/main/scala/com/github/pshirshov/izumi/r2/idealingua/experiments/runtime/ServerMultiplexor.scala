@@ -6,20 +6,20 @@ import scala.language.higherKinds
 trait UnsafeDispatcher[Ctx, R[_]] extends WithResultType[R] {
   def identifier: ServiceId
 
-  def dispatchUnsafe(input: InContext[MuxRequest[Any], Ctx]): Option[Result[MuxResponse[Any]]]
+  def dispatchUnsafe(input: InContext[MuxRequest[Product], Ctx]): Option[Result[MuxResponse[Product]]]
 }
 
 case class Method(service: ServiceId, methodId: MethodId)
 
-case class ReqBody(value: Any) extends AnyRef
+case class ReqBody(value: Product) extends AnyRef
 
-case class ResBody(value: Any) extends AnyRef
+case class ResBody(value: Product) extends AnyRef
 
-case class MuxResponse[T](v: T, method: Method) {
+case class MuxResponse[T <: Product](v: T, method: Method) {
   def body: ResBody = ResBody(v)
 }
 
-case class MuxRequest[T](v: T, method: Method) {
+case class MuxRequest[T <: Product](v: T, method: Method) {
   def body: ReqBody = ReqBody(v)
 }
 
@@ -29,12 +29,12 @@ case class MethodId(value: String) extends AnyVal
 
 
 class ServerMultiplexor[R[_] : ServiceResult, Ctx](dispatchers: List[UnsafeDispatcher[Ctx, R]])
-  extends Dispatcher[InContext[MuxRequest[Any], Ctx], MuxResponse[Any], R]
+  extends Dispatcher[InContext[MuxRequest[Product], Ctx], MuxResponse[Product], R]
     with WithResult[R] {
   override protected def _ServiceResult: ServiceResult[R] = implicitly
 
-  type Input = InContext[MuxRequest[Any], Ctx]
-  type Output = MuxResponse[Any]
+  type Input = InContext[MuxRequest[Product], Ctx]
+  type Output = MuxResponse[Product]
 
   override def dispatch(input: Input): Result[Output] = {
     dispatchers.foreach {

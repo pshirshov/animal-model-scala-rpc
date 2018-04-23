@@ -93,8 +93,8 @@
 //
 //    val serverMarshalling: TransportMarshallers[
 //      InContext[String, DummyContext]
-//      , InContext[MuxRequest[Any], DummyContext]
-//      , MuxResponse[Any]
+//      , InContext[MuxRequest[Product], DummyContext]
+//      , MuxResponse[Product]
 //      , String] = new SimpleMarshallerServerImpl(OpinionatedMuxedCodec(codecs))
 //
 //    final val server = {
@@ -111,8 +111,8 @@
 //
 //    val clientMarshalling: TransportMarshallers[
 //      String
-//      , MuxRequest[Any]
-//      , MuxResponse[Any]
+//      , MuxRequest[Product]
+//      , MuxResponse[Product]
 //      , String] = new SimpleMarshallerClientImpl(OpinionatedMuxedCodec(codecs))
 //
 //    final val clientDispatcher = {
@@ -149,8 +149,8 @@
 //    final val server = {
 //      val serverMarshalling: TransportMarshallers[
 //        InContext[String, DummyContext]
-//        , InContext[MuxRequest[Any], DummyContext]
-//        , MuxResponse[Any]
+//        , InContext[MuxRequest[Product], DummyContext]
+//        , MuxResponse[Product]
 //        , String] = new SimpleMarshallerServerImpl(OpinionatedMuxedCodec(codecs))
 //      new ServerReceiver(serverMuxer, serverMarshalling)
 //    }
@@ -166,8 +166,8 @@
 //    final val clientDispatcher = {
 //      val clientMarshalling: TransportMarshallers[
 //        String
-//        , MuxRequest[Any]
-//        , MuxResponse[Any]
+//        , MuxRequest[Product]
+//        , MuxResponse[Product]
 //        , String] = new SimpleMarshallerClientImpl(OpinionatedMuxedCodec(codecs))
 //      new ClientDispatcher(transport, clientMarshalling)
 //    }

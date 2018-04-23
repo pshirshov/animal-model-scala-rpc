@@ -38,11 +38,11 @@ object CalculatorServiceWrapped
     with WrappedUnsafeServiceDefinition
     with CirceWrappedServiceDefinition {
 
-  sealed trait CalculatorServiceInput extends AnyRef
+  sealed trait CalculatorServiceInput extends AnyRef with Product
 
   case class SumInput(a: Int, b: Int) extends CalculatorServiceInput
 
-  sealed trait CalculatorServiceOutput extends Any
+  sealed trait CalculatorServiceOutput extends Any with Product
 
   case class SumOutput(value: Int) extends AnyVal with CalculatorServiceOutput
 
@@ -58,7 +58,7 @@ object CalculatorServiceWrapped
   }
 
 
-  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Any], MuxResponse[Any], R]): CalculatorServiceClient[R] = {
+  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Product], MuxResponse[Product], R]): CalculatorServiceClient[R] = {
     client(new SafeToUnsafeBridge[R](dispatcher))
   }
 
@@ -119,7 +119,7 @@ object CalculatorServiceWrapped
     }
   }
 
-  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Any], MuxResponse[Any], R]) extends Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with WithResult[R] {
+  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Product], MuxResponse[Product], R]) extends Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with WithResult[R] {
     override protected def _ServiceResult: ServiceResult[R] = implicitly
 
     import ServiceResult._
@@ -170,11 +170,11 @@ object CalculatorServiceWrapped
       }
     }
 
-    private def dispatchZeroargUnsafe(input: InContext[Method, C]): Option[Result[MuxResponse[Any]]] = {
+    private def dispatchZeroargUnsafe(input: InContext[Method, C]): Option[Result[MuxResponse[Product]]] = {
       toZeroargBody(input.value).map(b => _ServiceResult.map(dispatch(InContext(b, input.context)))(v => MuxResponse(v, toMethodId(v))))
     }
 
-    override def dispatchUnsafe(input: InContext[MuxRequest[Any], C]): Option[Result[MuxResponse[Any]]] = {
+    override def dispatchUnsafe(input: InContext[MuxRequest[Product], C]): Option[Result[MuxResponse[Product]]] = {
       input.value.v match {
         case v: CalculatorServiceInput =>
           Option(_ServiceResult.map(dispatch(InContext(v, input.context)))(v => MuxResponse(v, toMethodId(v))))

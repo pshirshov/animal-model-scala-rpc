@@ -27,7 +27,7 @@ class RuntimeHttp4s[R[_] : ServiceResult : Monad] {
     def requestDecoder(context: Ctx, m: experiments.runtime.Method): EntityDecoder[R, muxer.Input] =
       EntityDecoder.decodeBy(MediaRange.`*/*`) {
         message =>
-          val decoded: R[Either[DecodeFailure, InContext[MuxRequest[Any], Ctx]]] = message.as[String].map {
+          val decoded: R[Either[DecodeFailure, InContext[MuxRequest[Product], Ctx]]] = message.as[String].map {
             str =>
               Right {
                 val r = marshallers.decodeRequest(str, m)
@@ -56,7 +56,7 @@ class RuntimeHttp4s[R[_] : ServiceResult : Monad] {
     HttpService[R] {
       case request@GET -> Root / service / method =>
         val methodId = experiments.runtime.Method(ServiceId(service), MethodId(method))
-        val req = InContext(MuxRequest[Any](methodId, methodId), contextProvider(request))
+        val req = InContext(MuxRequest[Product](methodId, methodId), contextProvider(request))
         TM.flatMap(muxer.dispatch(req))(dsl.Ok(_))
 
 
@@ -65,7 +65,7 @@ class RuntimeHttp4s[R[_] : ServiceResult : Monad] {
         implicit val dec: EntityDecoder[R, muxer.Input] = requestDecoder(contextProvider(request), methodId)
 
 
-        request.decode[InContext[MuxRequest[Any], Ctx]] {
+        request.decode[InContext[MuxRequest[Product], Ctx]] {
           message =>
             TM.flatMap(muxer.dispatch(message))(dsl.Ok(_))
         }
@@ -77,18 +77,21 @@ class RuntimeHttp4s[R[_] : ServiceResult : Monad] {
     baseUri: Uri
     , marshallers: ClientMarshallers[R]
     , client: Client[R]
-  )(implicit ed: StreamDecoder): Dispatcher[MuxRequest[Any], MuxResponse[Any], R] = {
+  )(implicit ed: StreamDecoder): Dispatcher[MuxRequest[Product], MuxResponse[Product], R] = {
 
-    new Dispatcher[MuxRequest[Any], MuxResponse[Any], R] {
-      override def dispatch(input: MuxRequest[Any]): Result[MuxResponse[Any]] = {
+    new Dispatcher[MuxRequest[Product], MuxResponse[Product], R] {
+      override def dispatch(input: MuxRequest[Product]): Result[MuxResponse[Product]] = {
         val uri = baseUri / input.method.service.value / input.method.methodId.value
 
         val outBytes: Array[Byte] = marshallers.encodeRequest(input.body).getBytes
         val body: EntityBody[R] = Stream.emits(outBytes).covary[R]
 
-        val req: Request[R] = if (true) {
+        val req: Request[R] = if (input.body.value.productArity > 0) {
+          println("POST!")
+
           Request(org.http4s.Method.POST, uri, body = body)
         } else {
+          println("GET!")
           Request(org.http4s.Method.GET, uri)
         }
 
@@ -96,7 +99,7 @@ class RuntimeHttp4s[R[_] : ServiceResult : Monad] {
           resp =>
             resp.as[MaterializedStream].map {
               s =>
-                val inValue: Any = marshallers.decodeResponse(s, input.method).value
+                val inValue: Product = marshallers.decodeResponse(s, input.method).value
                 MuxResponse(inValue, input.method)
             }
         }

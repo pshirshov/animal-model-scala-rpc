@@ -45,12 +45,12 @@ object GreeterServiceWrapped
     with WrappedUnsafeServiceDefinition
     with CirceWrappedServiceDefinition {
 
-  sealed trait GreeterServiceInput
+  sealed trait GreeterServiceInput extends AnyRef with Product
 
   case class GreetInput(name: String, surname: String) extends GreeterServiceInput
   case class SayHiInput() extends GreeterServiceInput
 
-  sealed trait GreeterServiceOutput
+  sealed trait GreeterServiceOutput extends AnyRef with Product
 
   case class GreetOutput(value: String) extends GreeterServiceOutput
   case class SayHiOutput(value: String) extends GreeterServiceOutput
@@ -77,7 +77,7 @@ object GreeterServiceWrapped
     new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
-  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Any], MuxResponse[Any], R]): GreeterServiceClient[R] = {
+  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Product], MuxResponse[Product], R]): GreeterServiceClient[R] = {
     client(new SafeToUnsafeBridge[R](dispatcher))
   }
 
@@ -134,13 +134,13 @@ object GreeterServiceWrapped
     }
   }
 
-  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Any], MuxResponse[Any], R]) extends Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] with WithResult[R] {
+  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Product], MuxResponse[Product], R]) extends Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] with WithResult[R] {
     override protected def _ServiceResult: ServiceResult[R] = implicitly
 
     import ServiceResult._
 
     override def dispatch(input: GreeterServiceInput): Result[GreeterServiceOutput] = {
-      dispatcher.dispatch(MuxRequest(input : Any, toMethodId(input))).map {
+      dispatcher.dispatch(MuxRequest(input : Product, toMethodId(input))).map {
         case MuxResponse(t: GreeterServiceOutput, _) =>
           t
         case o =>
@@ -194,12 +194,12 @@ object GreeterServiceWrapped
       }
     }
 
-    private def dispatchZeroargUnsafe(input: InContext[Method, C]): Option[Result[MuxResponse[Any]]] = {
+    private def dispatchZeroargUnsafe(input: InContext[Method, C]): Option[Result[MuxResponse[Product]]] = {
       toZeroargBody(input.value).map(b => _ServiceResult.map(dispatch(InContext(b, input.context)))(v => MuxResponse(v, toMethodId(v))))
     }
 
 
-    override def dispatchUnsafe(input: InContext[MuxRequest[Any], Context]): Option[Result[MuxResponse[Any]]] = {
+    override def dispatchUnsafe(input: InContext[MuxRequest[Product], Context]): Option[Result[MuxResponse[Product]]] = {
       input.value.v match {
         case v: GreeterServiceInput =>
           Option(_ServiceResult.map(dispatch(InContext(v, input.context)))(v => MuxResponse(v, toMethodId(v))))
