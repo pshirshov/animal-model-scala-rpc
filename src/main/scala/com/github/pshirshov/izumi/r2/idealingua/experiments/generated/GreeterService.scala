@@ -69,7 +69,7 @@ object GreeterServiceWrapped
     new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
-  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[_], MuxResponse[_], R]): GreeterServiceClient[R] = {
+  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Any], MuxResponse[Any], R]): GreeterServiceClient[R] = {
     client(new SafeToUnsafeBridge[R](dispatcher))
   }
 
@@ -113,14 +113,13 @@ object GreeterServiceWrapped
     }
   }
 
-  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[_], MuxResponse[_], R]) extends Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] with WithResult[R] {
+  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Any], MuxResponse[Any], R]) extends Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] with WithResult[R] {
     override protected def _ServiceResult: ServiceResult[R] = implicitly
 
     import ServiceResult._
 
     override def dispatch(input: GreeterServiceInput): Result[GreeterServiceOutput] = {
-      val muxedRequest = MuxRequest(input, toMethodId(input))
-      dispatcher.dispatch(muxedRequest).map {
+      dispatcher.dispatch(MuxRequest(input : Any, toMethodId(input))).map {
         case MuxResponse(t: GreeterServiceOutput, _) =>
           t
         case o =>
@@ -158,7 +157,7 @@ object GreeterServiceWrapped
 
     override def identifier: ServiceId = serviceId
 
-    override def dispatchUnsafe(input: InContext[MuxRequest[_], Context]): Option[Result[MuxResponse[_]]] = {
+    override def dispatchUnsafe(input: InContext[MuxRequest[Any], Context]): Option[Result[MuxResponse[Any]]] = {
       input.value.v match {
         case v: GreeterServiceInput =>
           Option(_ServiceResult.map(dispatch(InContext(v, input.context)))(v => MuxResponse(v, toMethodId(v))))

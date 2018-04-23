@@ -57,7 +57,7 @@ object CalculatorServiceWrapped
   }
 
 
-  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[_], MuxResponse[_], R]): CalculatorServiceClient[R] = {
+  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Any], MuxResponse[Any], R]): CalculatorServiceClient[R] = {
     client(new SafeToUnsafeBridge[R](dispatcher))
   }
 
@@ -82,14 +82,22 @@ object CalculatorServiceWrapped
   }
 
   object CalculatorServiceInput {
-    implicit val encodeTestPayload: Encoder[CalculatorServiceInput] = deriveEncoder
-    implicit val decodeTestPayload: Decoder[CalculatorServiceInput] = deriveDecoder
+    implicit val encodeTestPayload: Encoder[CalculatorServiceWrapped.CalculatorServiceInput] = deriveEncoder
+    implicit val decodeTestPayload: Decoder[CalculatorServiceWrapped.CalculatorServiceInput] = deriveDecoder
   }
 
-  object CalculatorServiceOutput {
-    implicit val encodeTestPayload: Encoder[CalculatorServiceOutput] = deriveEncoder
-    implicit val decodeTestPayload: Decoder[CalculatorServiceOutput] = deriveDecoder
+  object CalculatorServiceOutput extends CalculatorServiceWrapped.CalculatorServiceOutputCirce
+  trait CalculatorServiceOutputCirce extends _root_.io.circe.java8.time.TimeInstances {
+    import _root_.io.circe._
+    import _root_.io.circe.generic.semiauto._
+    implicit val encodeInTestService: Encoder[CalculatorServiceOutput] = deriveEncoder[CalculatorServiceOutput]
+    implicit val decodeInTestService: Decoder[CalculatorServiceOutput] = deriveDecoder[CalculatorServiceOutput]
   }
+
+//  object CalculatorServiceOutput {
+//    implicit val encodeTestPayload: Encoder[CalculatorServiceWrapped.CalculatorServiceOutput] = deriveEncoder
+//    implicit val decodeTestPayload: Decoder[CalculatorServiceWrapped.CalculatorServiceOutput] = deriveDecoder
+//  }
 
   val serviceId = ServiceId("CalculatorService")
 
@@ -110,7 +118,7 @@ object CalculatorServiceWrapped
     }
   }
 
-  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[_], MuxResponse[_], R]) extends Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with WithResult[R] {
+  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Any], MuxResponse[Any], R]) extends Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with WithResult[R] {
     override protected def _ServiceResult: ServiceResult[R] = implicitly
 
     import ServiceResult._
@@ -154,7 +162,7 @@ object CalculatorServiceWrapped
 
     override def identifier: ServiceId = serviceId
 
-    override def dispatchUnsafe(input: InContext[MuxRequest[_], C]): Option[Result[MuxResponse[_]]] = {
+    override def dispatchUnsafe(input: InContext[MuxRequest[Any], C]): Option[Result[MuxResponse[Any]]] = {
       input.value.v match {
         case v: CalculatorServiceInput =>
           Option(_ServiceResult.map(dispatch(InContext(v, input.context)))(v => MuxResponse(v, toMethodId(v))))

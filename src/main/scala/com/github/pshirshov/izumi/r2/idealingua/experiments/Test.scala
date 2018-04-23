@@ -91,13 +91,13 @@ object TestMul {
 
     final val codecs = List(GreeterServiceWrapped, CalculatorServiceWrapped)
 
-    final val server = {
-      val serverMarshalling: TransportMarshallers[
-        InContext[String, DummyContext]
-        , InContext[MuxRequest[_], DummyContext]
-        , MuxResponse[_]
-        , String] = new SimpleMarshallerServerImpl(OpinionatedMuxedCodec(codecs))
+    val serverMarshalling: TransportMarshallers[
+      InContext[String, DummyContext]
+      , InContext[MuxRequest[Any], DummyContext]
+      , MuxResponse[Any]
+      , String] = new SimpleMarshallerServerImpl(OpinionatedMuxedCodec(codecs))
 
+    final val server = {
       val out = new ServerReceiver(serverMuxer, serverMarshalling)
       println("Testing direct RPC call...")
       val request = serverMarshalling.encodeRequest(InContext(MuxRequest(GreeterServiceWrapped.GreetInput("John", "Doe"), Method(GreeterServiceWrapped.serviceId, MethodId("greet"))), DummyContext("127.0.0.1")))
@@ -109,12 +109,13 @@ object TestMul {
     val network = new NetworkSimulator(server, (p: String) => InContext(p, DummyContext("127.0.0.1")))
 
 
+    val clientMarshalling: TransportMarshallers[
+      String
+      , MuxRequest[Any]
+      , MuxResponse[Any]
+      , String] = new SimpleMarshallerClientImpl(OpinionatedMuxedCodec(codecs))
+
     final val clientDispatcher = {
-      val clientMarshalling: TransportMarshallers[
-        String
-        , MuxRequest[_]
-        , MuxResponse[_]
-        , String] = new SimpleMarshallerClientImpl(OpinionatedMuxedCodec(codecs))
       new ClientDispatcher(network, clientMarshalling)
     }
     final val greeterClient = GreeterServiceWrapped.clientUnsafe(clientDispatcher)
@@ -148,8 +149,8 @@ object TestMul {
     final val server = {
       val serverMarshalling: TransportMarshallers[
         InContext[String, DummyContext]
-        , InContext[MuxRequest[_], DummyContext]
-        , MuxResponse[_]
+        , InContext[MuxRequest[Any], DummyContext]
+        , MuxResponse[Any]
         , String] = new SimpleMarshallerServerImpl(OpinionatedMuxedCodec(codecs))
       new ServerReceiver(serverMuxer, serverMarshalling)
     }
@@ -165,8 +166,8 @@ object TestMul {
     final val clientDispatcher = {
       val clientMarshalling: TransportMarshallers[
         String
-        , MuxRequest[_]
-        , MuxResponse[_]
+        , MuxRequest[Any]
+        , MuxResponse[Any]
         , String] = new SimpleMarshallerClientImpl(OpinionatedMuxedCodec(codecs))
       new ClientDispatcher(transport, clientMarshalling)
     }

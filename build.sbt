@@ -6,3 +6,4 @@ scalaVersion := "2.12.4"
 
 libraryDependencies ++= D.circe
 libraryDependencies += D.cats_core
+libraryDependencies ++= D.http4s_all
