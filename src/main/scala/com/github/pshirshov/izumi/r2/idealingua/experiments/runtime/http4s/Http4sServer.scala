@@ -31,25 +31,17 @@ trait ServerMarshallers[T[_]] {
   def encodeResponse(response: ResBody): String
 }
 
+case class DummyContext(ip: String)
 
-//trait Marshallers[T[_], Ctx] {
-//  type M = ServerMultiplexor[T, Ctx]
-//
-//  def requestDecoder(context: Ctx, m: experiments.runtime.Method): EntityDecoder[T, M#Input]
-//  def respEncoder(): EntityEncoder[T, M#Output]
-//
-//}
-
-class Demo[R[_] : ServiceResult : Monad] {
+class Demo[R[_] : ServiceResult : Monad, Ctx] {
 
   import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
   import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.MuxedCodec
 
-  case class DummyContext(ip: String)
 
   final val serverMuxer = {
-    val greeterService = new AbstractGreeterServer.Impl[R, DummyContext]
-    val calculatorService = new AbstractCalculatorServer.Impl[R, DummyContext]
+    val greeterService = new AbstractGreeterServer.Impl[R, Ctx]
+    val calculatorService = new AbstractCalculatorServer.Impl[R, Ctx]
     val greeterDispatcher = GreeterServiceWrapped.serverUnsafe(greeterService)
     val calculatorDispatcher = CalculatorServiceWrapped.serverUnsafe(calculatorService)
     val dispatchers = List(greeterDispatcher, calculatorDispatcher)
@@ -112,13 +104,11 @@ object Definitions {
   import RuntimeCats._
   val rt = new RuntimeHttp4s[IO]
 
-  val demo = new Demo[IO]()
+  val demo = new Demo[IO, DummyContext]()
 
-
-  def ctx[T[_]](request: Request[T]): demo.DummyContext = {
-    demo.DummyContext(request.remoteAddr.getOrElse("0.0.0.0"))
+  def ctx[T[_]](request: Request[T]): DummyContext = {
+    DummyContext(request.remoteAddr.getOrElse("0.0.0.0"))
   }
-
 
   val ioService = rt.httpService(demo.serverMuxer, ctx[IO], demo.sm, io)
 
