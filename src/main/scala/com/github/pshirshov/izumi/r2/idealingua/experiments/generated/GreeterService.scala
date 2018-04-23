@@ -2,6 +2,8 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 
 import com.github.pshirshov.izumi.r2.idealingua
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
+import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.CalculatorServiceWrapped.toMethodId
+import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped.serviceId
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe._
 import io.circe.Decoder.Result
@@ -12,14 +14,18 @@ import scala.language.{higherKinds, implicitConversions}
 
 trait GreeterServiceClient[R[_]] extends WithResultType[R] {
   def greet(name: String, surname: String): Result[String]
+  def sayhi(): Result[String]
+
 }
 
 trait GreeterService[R[_], C] extends WithResultType[R] {
   def greet(ctx: C, name: String, surname: String): Result[String]
+  def sayhi(ctx: C): Result[String]
 }
 
 trait GreeterServiceCtx[R[_], C] extends WithResultType[R] with WithContext[C] {
   def greet(context: C, name: String, surname: String): Result[String]
+  def sayhi(context: C): Result[String]
 }
 
 
@@ -42,10 +48,12 @@ object GreeterServiceWrapped
   sealed trait GreeterServiceInput
 
   case class GreetInput(name: String, surname: String) extends GreeterServiceInput
+  case class SayHiInput() extends GreeterServiceInput
 
   sealed trait GreeterServiceOutput
 
   case class GreetOutput(value: String) extends GreeterServiceOutput
+  case class SayHiOutput(value: String) extends GreeterServiceOutput
 
 
   override type Input = GreeterServiceInput
@@ -101,6 +109,19 @@ object GreeterServiceWrapped
       with WithResult[R] {
     def dispatcher: Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]
 
+
+    override def sayhi(): Result[String] = {
+      val packed = SayHiInput()
+      val dispatched = dispatcher.dispatch(packed)
+      _ServiceResult.map(dispatched) {
+        case o: GreetOutput =>
+          o.value
+        case o =>
+          throw new TypeMismatchException(s"Unexpected input in GreeterServiceDispatcherPacking.greet: $o", o)
+      }
+
+    }
+
     def greet(name: String, surname: String): Result[String] = {
       val packed = GreetInput(name, surname)
       val dispatched = dispatcher.dispatch(packed)
@@ -148,22 +169,43 @@ object GreeterServiceWrapped
       _ServiceResult.map(result)(GreetOutput.apply)
     }
 
+    def sayhi(context: Context, input: SayHiInput): Result[GreetOutput] = {
+      val result = service.sayhi(context)
+      _ServiceResult.map(result)(GreetOutput.apply)
+    }
+
     def dispatch(input: InContext[GreeterServiceInput, Context]): Result[GreeterServiceOutput] = {
       input match {
         case InContext(v: GreetInput, c) =>
           _ServiceResult.map(greet(c, v))(v => v) // upcast
+        case InContext(v: SayHiInput, c) =>
+          _ServiceResult.map(sayhi(c, v))(v => v) // upcast
       }
     }
 
     override def identifier: ServiceId = serviceId
+
+    private def toZeroargBody(v: Method): Option[GreeterServiceInput] = {
+      v match {
+        case Method(`serviceId`, MethodId("sayhi")) =>
+          Some(SayHiInput())
+        case _ =>
+          None
+      }
+    }
+
+    private def dispatchZeroargUnsafe(input: InContext[Method, C]): Option[Result[MuxResponse[Any]]] = {
+      toZeroargBody(input.value).map(b => _ServiceResult.map(dispatch(InContext(b, input.context)))(v => MuxResponse(v, toMethodId(v))))
+    }
+
 
     override def dispatchUnsafe(input: InContext[MuxRequest[Any], Context]): Option[Result[MuxResponse[Any]]] = {
       input.value.v match {
         case v: GreeterServiceInput =>
           Option(_ServiceResult.map(dispatch(InContext(v, input.context)))(v => MuxResponse(v, toMethodId(v))))
 
-        case _ =>
-          None
+        case v =>
+          dispatchZeroargUnsafe(InContext(input.value.method, input.context))
       }
     }
   }
@@ -171,13 +213,17 @@ object GreeterServiceWrapped
   def toMethodId(v: GreeterServiceInput): Method  = {
     v match {
       case _: GreetInput => Method(serviceId, MethodId("greet"))
+      case _: SayHiInput => Method(serviceId, MethodId("sayhi"))
     }
   }
+
   def toMethodId(v: GreeterServiceOutput): Method  = {
     v match {
       case _: GreetOutput => Method(serviceId, MethodId("greet"))
+      case _: SayHiOutput => Method(serviceId, MethodId("sayhi"))
     }
   }
+
 
 
   object UnpackingDispatcher {

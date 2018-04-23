@@ -2,6 +2,7 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 
 import com.github.pshirshov.izumi.r2.idealingua
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
+import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped.{GreeterServiceInput, SayHiInput}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{CirceWrappedServiceDefinition, CursorForMethod, MuxingCodecProvider}
 import io.circe.Decoder.Result
@@ -162,13 +163,24 @@ object CalculatorServiceWrapped
 
     override def identifier: ServiceId = serviceId
 
+    private def toZeroargBody(v: Method): Option[CalculatorServiceInput] = {
+      v match {
+        case _ =>
+          None
+      }
+    }
+
+    private def dispatchZeroargUnsafe(input: InContext[Method, C]): Option[Result[MuxResponse[Any]]] = {
+      toZeroargBody(input.value).map(b => _ServiceResult.map(dispatch(InContext(b, input.context)))(v => MuxResponse(v, toMethodId(v))))
+    }
+
     override def dispatchUnsafe(input: InContext[MuxRequest[Any], C]): Option[Result[MuxResponse[Any]]] = {
       input.value.v match {
         case v: CalculatorServiceInput =>
           Option(_ServiceResult.map(dispatch(InContext(v, input.context)))(v => MuxResponse(v, toMethodId(v))))
 
         case _ =>
-          None
+          dispatchZeroargUnsafe(InContext(input.value.method, input.context))
       }
     }
   }
@@ -192,6 +204,7 @@ object CalculatorServiceWrapped
       case _: SumOutput => Method(serviceId, MethodId("sum"))
     }
   }
+
 
 
   override def codecProvider: MuxingCodecProvider = CodecProvider

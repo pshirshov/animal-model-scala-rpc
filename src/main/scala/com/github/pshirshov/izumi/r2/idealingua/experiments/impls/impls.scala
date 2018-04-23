@@ -10,6 +10,10 @@ trait AbstractGreeterServer[R[_], C] extends GreeterService[R, C] with WithResul
   override def greet(ctx: C, name: String, surname: String): Result[String] = _Result {
     s"Hi, $name $surname!"
   }
+
+  override def sayhi(ctx: C): Result[String] = _Result {
+    s"Hi!"
+  }
 }
 
 object AbstractGreeterServer {
