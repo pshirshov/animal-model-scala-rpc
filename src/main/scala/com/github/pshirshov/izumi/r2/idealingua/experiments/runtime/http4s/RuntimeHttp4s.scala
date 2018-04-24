@@ -1,26 +1,33 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.http4s
 
 import cats._
+import cats.data._
+import cats.effect._
 import cats.implicits._
 import com.github.pshirshov.izumi.r2.idealingua.experiments
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{ClientMarshallers, ServerMarshallers}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.{ServerMultiplexor, _}
 import fs2.Stream
-import org.http4s._
+import org.http4s.{AuthedService, _}
 import org.http4s.client.Client
 import org.http4s.dsl._
+import org.http4s.server.AuthMiddleware
 
 import scala.language.{higherKinds, implicitConversions}
+
+
 
 class RuntimeHttp4s[R[_] : IRTServiceResult : Monad] {
   type MaterializedStream = String
   type StreamDecoder = EntityDecoder[R, MaterializedStream]
-  val TM: IRTServiceResult[R] = implicitly[IRTServiceResult[R]]
+  private val TM: IRTServiceResult[R] = implicitly[IRTServiceResult[R]]
+
+
 
   def httpService[Ctx]
   (
     muxer: ServerMultiplexor[R, Ctx]
-    , contextProvider: Request[R] => Ctx
+    , contextProvider: AuthMiddleware[R, Ctx]
     , marshallers: ServerMarshallers
     , dsl: Http4sDsl[R]
   )(implicit ed: StreamDecoder): HttpService[R] = {
@@ -57,47 +64,37 @@ class RuntimeHttp4s[R[_] : IRTServiceResult : Monad] {
 
     implicit val enc: EntityEncoder[R, muxer.Output] = respEncoder()
 
-    HttpService[R] {
-      case request@GET -> Root / service / method =>
+    val svc = AuthedService[Ctx, R] {
+      case request@GET -> Root / service / method as ctx =>
         val methodId = experiments.runtime.Method(ServiceId(service), MethodId(method))
-        val req = InContext(MuxRequest[Product](methodId, methodId), contextProvider(request))
+        val req = InContext(MuxRequest[Product](methodId, methodId), ctx)
         TM.flatMap(muxer.dispatch(req))(dsl.Ok(_))
 
 
-      case request@POST -> Root / service / method =>
+      case request@POST -> Root / service / method as ctx =>
         val methodId = experiments.runtime.Method(ServiceId(service), MethodId(method))
-        implicit val dec: EntityDecoder[R, muxer.Input] = requestDecoder(contextProvider(request), methodId)
+        implicit val dec: EntityDecoder[R, muxer.Input] = requestDecoder(ctx, methodId)
 
 
-        request.decode[InContext[MuxRequest[Product], Ctx]] {
+        request.req.decode[InContext[MuxRequest[Product], Ctx]] {
           message =>
             TM.flatMap(muxer.dispatch(message))(dsl.Ok(_))
         }
     }
+
+    val aservice: HttpService[R] = contextProvider(svc)
+    aservice
   }
 
   def httpClient
-  (
-    baseUri: Uri
-    , marshallers: ClientMarshallers
-    , client: Client[R]
-  )(implicit ed: StreamDecoder): Dispatcher[MuxRequest[Product], MuxResponse[Product], R] = {
-
+  (client: Client[R], marshallers: ClientMarshallers)
+  (builder: (MuxRequest[Product], EntityBody[R]) => Request[R])
+  (implicit ed: StreamDecoder): Dispatcher[MuxRequest[Product], MuxResponse[Product], R] = {
     new Dispatcher[MuxRequest[Product], MuxResponse[Product], R] {
       override def dispatch(input: MuxRequest[Product]): Result[MuxResponse[Product]] = {
-        val uri = baseUri / input.method.service.value / input.method.methodId.value
-
         val outBytes: Array[Byte] = marshallers.encodeRequest(input.body).getBytes
         val body: EntityBody[R] = Stream.emits(outBytes).covary[R]
-
-        val req: Request[R] = if (input.body.value.productArity > 0) {
-          println("POST!")
-
-          Request(org.http4s.Method.POST, uri, body = body)
-        } else {
-          println("GET!")
-          Request(org.http4s.Method.GET, uri)
-        }
+        val req: Request[R] = builder(input, body)
 
         client.fetch(req) {
           resp =>
@@ -116,6 +113,15 @@ class RuntimeHttp4s[R[_] : IRTServiceResult : Monad] {
         }
       }
     }
+  }
 
+  def requestBuilder(baseUri: Uri)(input: MuxRequest[Product], body: EntityBody[R]): Request[R] = {
+    val uri = baseUri / input.method.service.value / input.method.methodId.value
+
+    if (input.body.value.productArity > 0) {
+      Request(org.http4s.Method.POST, uri, body = body)
+    } else {
+      Request(org.http4s.Method.GET, uri)
+    }
   }
 }

@@ -1,7 +1,9 @@
 package com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.http4s
 
 import cats._
+import cats.data.{Kleisli, OptionT}
 import cats.effect._
+import cats.implicits._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.{CalculatorServiceWrapped, GreeterServiceWrapped}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.impls.{AbstractCalculatorServer, AbstractGreeterServer}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
@@ -13,10 +15,17 @@ import org.http4s.client.blaze.Http1Client
 import org.http4s.dsl._
 import org.http4s.dsl.io._
 import org.http4s.server.blaze._
+import cats._
+import cats.effect._
+import cats.implicits._
+import cats.data._
+import org.http4s._
+import org.http4s.dsl.io._
+import org.http4s.implicits._
+import org.http4s.server._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.language.{higherKinds, implicitConversions}
-
+import scala.language.{higherKinds, implicitConversions, reflectiveCalls}
 
 
 case class DummyContext(ip: String)
@@ -45,23 +54,29 @@ class Demo[R[_] : IRTServiceResult : Monad, Ctx] {
 object Definitions {
 
   import RuntimeCats._
+
   val rt = new RuntimeHttp4s[IO]
 
   val demo = new Demo[IO, DummyContext]()
 
-  def ctx[T[_]](request: Request[T]): DummyContext = {
-    DummyContext(request.remoteAddr.getOrElse("0.0.0.0"))
-  }
+  val authUser: Kleisli[OptionT[IO, ?], Request[IO], DummyContext] =
+    Kleisli {
+      request: Request[IO] =>
+        val context = DummyContext(request.remoteAddr.getOrElse("0.0.0.0"))
 
-  val ioService = rt.httpService(demo.serverMuxer, ctx[IO], demo.sm, io)
+        OptionT.liftF(IO(context))
+    }
+
+  val ioService = rt.httpService(demo.serverMuxer, AuthMiddleware(authUser), demo.sm, io)
 
   val baseUri: Uri = Uri.fromString("http://localhost:8080").right.get
 
-  val clientDispatcher = rt.httpClient(baseUri, demo.cm, Http1Client[IO]().unsafeRunSync)
+  val clientDispatcher = rt.httpClient(Http1Client[IO]().unsafeRunSync, demo.cm)(rt.requestBuilder(baseUri))
+
   final val greeterClient = GreeterServiceWrapped.clientUnsafe(clientDispatcher)
   final val calculatorClient = CalculatorServiceWrapped.clientUnsafe(clientDispatcher)
-
 }
+
 
 object IRTHttp4sServer extends StreamApp[IO] {
 
