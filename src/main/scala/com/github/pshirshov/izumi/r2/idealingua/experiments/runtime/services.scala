@@ -23,18 +23,18 @@ trait WrappedServiceDefinition {
   type ServiceServer[_[_], _]
   type ServiceClient[_[_]]
 
-  def client[R[_] : ServiceResult](dispatcher: Dispatcher[Input, Output, R]): ServiceClient[R]
+  def client[R[_] : IRTServiceResult](dispatcher: Dispatcher[Input, Output, R]): ServiceClient[R]
 
 
-  def server[R[_] : ServiceResult, C](service: ServiceServer[R, C]): Dispatcher[InContext[Input, C], Output, R]
+  def server[R[_] : IRTServiceResult, C](service: ServiceServer[R, C]): Dispatcher[InContext[Input, C], Output, R]
 
 }
 
 
 trait WrappedUnsafeServiceDefinition {
   this: WrappedServiceDefinition =>
-  def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Product], MuxResponse[Product], R]): ServiceClient[R]
+  def clientUnsafe[R[_] : IRTServiceResult](dispatcher: Dispatcher[MuxRequest[Product], MuxResponse[Product], R]): ServiceClient[R]
 
-  def serverUnsafe[R[_] : ServiceResult, C](service: ServiceServer[R, C]): UnsafeDispatcher[C, R]
+  def serverUnsafe[R[_] : IRTServiceResult, C](service: ServiceServer[R, C]): UnsafeDispatcher[C, R]
 
 }

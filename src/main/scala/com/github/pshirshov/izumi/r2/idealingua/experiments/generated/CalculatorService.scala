@@ -53,21 +53,21 @@ object CalculatorServiceWrapped
   override type ServiceServer[R[_], C] = CalculatorService[R, C]
   override type ServiceClient[R[_]] = CalculatorServiceClient[R]
 
-  override def client[R[_] : ServiceResult](dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]): CalculatorServiceClient[R] = {
+  override def client[R[_] : IRTServiceResult](dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]): CalculatorServiceClient[R] = {
     new generated.CalculatorServiceWrapped.PackingDispatcher.Impl[R](dispatcher)
   }
 
 
-  override def clientUnsafe[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Product], MuxResponse[Product], R]): CalculatorServiceClient[R] = {
+  override def clientUnsafe[R[_] : IRTServiceResult](dispatcher: Dispatcher[MuxRequest[Product], MuxResponse[Product], R]): CalculatorServiceClient[R] = {
     client(new SafeToUnsafeBridge[R](dispatcher))
   }
 
-  override def server[R[_] : ServiceResult, C](service: CalculatorService[R, C]): Dispatcher[InContext[CalculatorServiceInput, C], CalculatorServiceOutput, R] = {
+  override def server[R[_] : IRTServiceResult, C](service: CalculatorService[R, C]): Dispatcher[InContext[CalculatorServiceInput, C], CalculatorServiceOutput, R] = {
     new idealingua.experiments.generated.CalculatorServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
 
-  override def serverUnsafe[R[_] : ServiceResult, C](service: CalculatorService[R, C]): UnsafeDispatcher[C, R] = {
+  override def serverUnsafe[R[_] : IRTServiceResult, C](service: CalculatorService[R, C]): UnsafeDispatcher[C, R] = {
     new idealingua.experiments.generated.CalculatorServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
@@ -119,10 +119,10 @@ object CalculatorServiceWrapped
     }
   }
 
-  class SafeToUnsafeBridge[R[_] : ServiceResult](dispatcher: Dispatcher[MuxRequest[Product], MuxResponse[Product], R]) extends Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with WithResult[R] {
-    override protected def _ServiceResult: ServiceResult[R] = implicitly
+  class SafeToUnsafeBridge[R[_] : IRTServiceResult](dispatcher: Dispatcher[MuxRequest[Product], MuxResponse[Product], R]) extends Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with WithResult[R] {
+    override protected def _ServiceResult: IRTServiceResult[R] = implicitly
 
-    import ServiceResult._
+    import IRTServiceResult._
 
     override def dispatch(input: CalculatorServiceInput): Result[CalculatorServiceOutput] = {
       dispatcher.dispatch(MuxRequest(input, toMethodId(input))).map {
@@ -136,8 +136,8 @@ object CalculatorServiceWrapped
 
   object PackingDispatcher {
 
-    class Impl[R[_] : ServiceResult](val dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]) extends PackingDispatcher[R] {
-      override protected def _ServiceResult: ServiceResult[R] = implicitly
+    class Impl[R[_] : IRTServiceResult](val dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]) extends PackingDispatcher[R] {
+      override protected def _ServiceResult: IRTServiceResult[R] = implicitly
     }
 
   }
@@ -187,8 +187,8 @@ object CalculatorServiceWrapped
 
   object UnpackingDispatcher {
 
-    class Impl[R[_] : ServiceResult, C](val service: CalculatorService[R, C]) extends UnpackingDispatcher[R, C] {
-      override protected def _ServiceResult: ServiceResult[R] = implicitly
+    class Impl[R[_] : IRTServiceResult, C](val service: CalculatorService[R, C]) extends UnpackingDispatcher[R, C] {
+      override protected def _ServiceResult: IRTServiceResult[R] = implicitly
     }
 
   }

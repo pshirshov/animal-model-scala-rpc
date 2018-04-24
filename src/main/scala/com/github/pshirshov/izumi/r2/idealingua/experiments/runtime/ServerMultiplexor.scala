@@ -28,10 +28,10 @@ case class ServiceId(value: String) extends AnyVal
 case class MethodId(value: String) extends AnyVal
 
 
-class ServerMultiplexor[R[_] : ServiceResult, Ctx](dispatchers: List[UnsafeDispatcher[Ctx, R]])
+class ServerMultiplexor[R[_] : IRTServiceResult, Ctx](dispatchers: List[UnsafeDispatcher[Ctx, R]])
   extends Dispatcher[InContext[MuxRequest[Product], Ctx], MuxResponse[Product], R]
     with WithResult[R] {
-  override protected def _ServiceResult: ServiceResult[R] = implicitly
+  override protected def _ServiceResult: IRTServiceResult[R] = implicitly
 
   type Input = InContext[MuxRequest[Product], Ctx]
   type Output = MuxResponse[Product]

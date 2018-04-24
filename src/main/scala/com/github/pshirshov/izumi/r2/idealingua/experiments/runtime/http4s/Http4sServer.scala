@@ -2,12 +2,10 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.http4s
 
 import cats._
 import cats.effect._
-import cats.implicits._
-import com.github.pshirshov.izumi.r2.idealingua.experiments
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.{CalculatorServiceWrapped, GreeterServiceWrapped}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.impls.{AbstractCalculatorServer, AbstractGreeterServer}
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.OpinionatedMuxedCodec
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.{ServerMultiplexor, _}
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.OpinionatedMarshalers
 import fs2.StreamApp.ExitCode
 import fs2.{Stream, StreamApp}
 import org.http4s._
@@ -19,25 +17,13 @@ import org.http4s.server.blaze._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.{higherKinds, implicitConversions}
 
-trait ClientMarshallers[T[_]] {
-  def encodeRequest(request: ReqBody): String
 
-  def decodeResponse(responseWire: String, m: experiments.runtime.Method): ResBody
-}
-
-trait ServerMarshallers[T[_]] {
-  def decodeRequest(requestWire: String, m: experiments.runtime.Method): ReqBody
-
-  def encodeResponse(response: ResBody): String
-}
 
 case class DummyContext(ip: String)
 
-class Demo[R[_] : ServiceResult : Monad, Ctx] {
+class Demo[R[_] : IRTServiceResult : Monad, Ctx] {
 
   import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
-  import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.MuxedCodec
-
 
   final val serverMuxer = {
     val greeterService = new AbstractGreeterServer.Impl[R, Ctx]
@@ -48,54 +34,11 @@ class Demo[R[_] : ServiceResult : Monad, Ctx] {
     new ServerMultiplexor(dispatchers)
   }
 
-  class XSimpleMarshallerImpl(codec: MuxedCodec) {
-
-    import _root_.io.circe.parser._
-    import _root_.io.circe.syntax._
-    import codec._
-
-    def decodeRequest(requestWire: String)(implicit m: Method): ReqBody = {
-      val parsed = parse(requestWire).flatMap(_.as[ReqBody])
-      println(s"Request parsed: $requestWire -> $parsed")
-      parsed.right.get
-    }
-
-    def decodeResponse(responseWire: String, m: Method): ResBody = {
-      implicit val x: Method = m
-      val parsed = parse(responseWire).flatMap(_.as[ResBody])
-      println(s"Response parsed: $responseWire -> $parsed")
-      parsed.right.get
-    }
-
-    def encodeRequest(request: ReqBody): String = {
-      request.asJson.noSpaces
-    }
-
-    def encodeResponse(response: ResBody): String = {
-      response.asJson.noSpaces
-    }
-  }
-
-
   final val codecs = List(GreeterServiceWrapped, CalculatorServiceWrapped)
-  final val marsh = new XSimpleMarshallerImpl(OpinionatedMuxedCodec(codecs))
+  final val marsh = OpinionatedMarshalers(codecs)
 
-  final val c = implicitly[ServiceResult[R]]
-
-  val TM = implicitly[Monad[R]]
-
-  val cm = new ClientMarshallers[R] {
-    override def encodeRequest(request: ReqBody): String = marsh.encodeRequest(request)
-
-    override def decodeResponse(responseWire: String, m: Method): ResBody = marsh.decodeResponse(responseWire, m)
-  }
-
-
-  val sm = new ServerMarshallers[R] {
-    override def decodeRequest(requestWire: String, m: Method): ReqBody = marsh.decodeRequest(requestWire)(m)
-
-    override def encodeResponse(response: ResBody): String = marsh.encodeResponse(response)
-  }
+  val cm = marsh
+  val sm = marsh
 
 }
 
@@ -124,11 +67,23 @@ object IRTHttp4sServer extends StreamApp[IO] {
 
   import Definitions._
 
-  override def stream(args: List[String], requestShutdown: IO[Unit]): Stream[IO, ExitCode] =
+  override def stream(args: List[String], requestShutdown: IO[Unit]): Stream[IO, ExitCode] = {
+    new Thread(new Runnable {
+      override def run(): Unit = {
+        println("Client waiting")
+        Thread.sleep(1500)
+        println("Client started")
+        IRTHttp4sClient.main(Array.empty)
+        println("Client finished, terminating")
+        System.exit(0)
+      }
+    }).start()
+
     BlazeBuilder[IO]
       .bindHttp(8080, "localhost")
       .mountService(ioService, "/")
       .serve
+  }
 }
 
 object IRTHttp4sClient {
@@ -137,6 +92,7 @@ object IRTHttp4sClient {
 
   def main(args: Array[String]): Unit = {
     println(greeterClient.greet("John", "Smith").unsafeRunSync())
+
     println(greeterClient.sayhi().unsafeRunSync())
   }
 }

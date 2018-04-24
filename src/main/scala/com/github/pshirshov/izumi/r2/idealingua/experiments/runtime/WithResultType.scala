@@ -8,9 +8,9 @@ trait WithResultType[R[_]] {
 }
 
 trait WithResult[R[_]] extends WithResultType[R] {
-  protected def _ServiceResult: ServiceResult[R]
+  protected def _ServiceResult: IRTServiceResult[R]
 
-  protected def _Result[T](value: => T): R[T] = _ServiceResult.pure(value)
+  protected def _Result[T](value: => T): R[T] = _ServiceResult.wrap(value)
 }
 
 trait WithContext[C] {
