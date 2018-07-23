@@ -7,47 +7,47 @@ import io.circe._
 import scala.language.higherKinds
 
 
-trait CirceWrappedServiceDefinition {
-  this: IdentifiableServiceDefinition =>
-  def codecProvider: MuxingCodecProvider
+trait IRTCirceWrappedServiceDefinition {
+  this: IRTIdentifiableServiceDefinition =>
+  def codecProvider: IRTMuxingCodecProvider
 }
 
-trait ClientMarshallers {
-  def encodeRequest(request: ReqBody): String
+trait IRTClientMarshallers {
+  def encodeRequest(request: IRTReqBody): String
 
-  def decodeResponse(responseWire: String, m: experiments.runtime.Method): Either[Error, ResBody]
+  def decodeResponse(responseWire: String, m: experiments.runtime.IRTMethod): Either[Error, IRTResBody]
 }
 
-trait ServerMarshallers {
-  def decodeRequest(requestWire: String, m: experiments.runtime.Method): Either[Error, ReqBody]
+trait IRTServerMarshallers {
+  def decodeRequest(requestWire: String, m: experiments.runtime.IRTMethod): Either[Error, IRTReqBody]
 
-  def encodeResponse(response: ResBody): String
+  def encodeResponse(response: IRTResBody): String
 }
 
-class OpinionatedMarshalers(provider: List[MuxingCodecProvider]) extends ClientMarshallers with ServerMarshallers {
+class IRTOpinionatedMarshalers(provider: List[IRTMuxingCodecProvider]) extends IRTClientMarshallers with IRTServerMarshallers {
 
   import _root_.io.circe.parser._
   import _root_.io.circe.syntax._
 
-  def decodeRequest(requestWire: String, m: Method): Either[Error, ReqBody] = {
-    implicit val x: Method = m
-    val parsed = parse(requestWire).flatMap(_.as[ReqBody])
+  def decodeRequest(requestWire: String, m: IRTMethod): Either[Error, IRTReqBody] = {
+    implicit val x: IRTMethod = m
+    val parsed = parse(requestWire).flatMap(_.as[IRTReqBody])
     println(s"Request parsed: $requestWire -> $parsed")
     parsed
   }
 
-  def decodeResponse(responseWire: String, m: Method): Either[Error, ResBody] = {
-    implicit val x: Method = m
-    val parsed = parse(responseWire).flatMap(_.as[ResBody])
+  def decodeResponse(responseWire: String, m: IRTMethod): Either[Error, IRTResBody] = {
+    implicit val x: IRTMethod = m
+    val parsed = parse(responseWire).flatMap(_.as[IRTResBody])
     println(s"Response parsed: $responseWire -> $parsed")
     parsed
   }
 
-  def encodeRequest(request: ReqBody): String = {
+  def encodeRequest(request: IRTReqBody): String = {
     request.asJson.noSpaces
   }
 
-  def encodeResponse(response: ResBody): String = {
+  def encodeResponse(response: IRTResBody): String = {
     response.asJson.noSpaces
   }
 
@@ -56,38 +56,38 @@ class OpinionatedMarshalers(provider: List[MuxingCodecProvider]) extends ClientM
   private val requestDecoders = provider.flatMap(_.requestDecoders)
   private val responseDecoders = provider.flatMap(_.responseDecoders)
 
-  private implicit val encodePolymorphicRequest: Encoder[ReqBody] = Encoder.instance { c =>
-    requestEncoders.foldLeft(PartialFunction.empty[ReqBody, Json])(_ orElse _)(c)
+  private implicit val encodePolymorphicRequest: Encoder[IRTReqBody] = Encoder.instance { c =>
+    requestEncoders.foldLeft(PartialFunction.empty[IRTReqBody, Json])(_ orElse _)(c)
   }
 
-  private implicit val encodePolymorphicResponse: Encoder[ResBody] = Encoder.instance { c =>
-    responseEncoders.foldLeft(PartialFunction.empty[ResBody, Json])(_ orElse _)(c)
+  private implicit val encodePolymorphicResponse: Encoder[IRTResBody] = Encoder.instance { c =>
+    responseEncoders.foldLeft(PartialFunction.empty[IRTResBody, Json])(_ orElse _)(c)
   }
 
-  private implicit def decodePolymorphicRequest(implicit method: Method): Decoder[ReqBody] = Decoder.instance(c => {
-    requestDecoders.foldLeft(PartialFunction.empty[CursorForMethod, Decoder.Result[ReqBody]])(_ orElse _)(CursorForMethod(method, c))
+  private implicit def decodePolymorphicRequest(implicit method: IRTMethod): Decoder[IRTReqBody] = Decoder.instance(c => {
+    requestDecoders.foldLeft(PartialFunction.empty[IRTCursorForMethod, Decoder.Result[IRTReqBody]])(_ orElse _)(IRTCursorForMethod(method, c))
   })
 
-  private  implicit def decodePolymorphicResponse(implicit method: Method): Decoder[ResBody] = Decoder.instance(c => {
-    responseDecoders.foldLeft(PartialFunction.empty[CursorForMethod, Decoder.Result[ResBody]])(_ orElse _)(CursorForMethod(method, c))
+  private  implicit def decodePolymorphicResponse(implicit method: IRTMethod): Decoder[IRTResBody] = Decoder.instance(c => {
+    responseDecoders.foldLeft(PartialFunction.empty[IRTCursorForMethod, Decoder.Result[IRTResBody]])(_ orElse _)(IRTCursorForMethod(method, c))
   })
 }
 
 
-object OpinionatedMarshalers {
-  def apply(definitions: List[CirceWrappedServiceDefinition]) = new OpinionatedMarshalers(definitions.map(_.codecProvider))
+object IRTOpinionatedMarshalers {
+  def apply(definitions: List[IRTCirceWrappedServiceDefinition]) = new IRTOpinionatedMarshalers(definitions.map(_.codecProvider))
 }
 
 
-case class CursorForMethod(methodId: Method, cursor: HCursor)
+case class IRTCursorForMethod(methodId: IRTMethod, cursor: HCursor)
 
-trait MuxingCodecProvider {
-  def requestEncoders: List[PartialFunction[ReqBody, Json]]
+trait IRTMuxingCodecProvider {
+  def requestEncoders: List[PartialFunction[IRTReqBody, Json]]
 
-  def responseEncoders: List[PartialFunction[ResBody, Json]]
+  def responseEncoders: List[PartialFunction[IRTResBody, Json]]
 
-  def requestDecoders: List[PartialFunction[CursorForMethod, Decoder.Result[ReqBody]]]
+  def requestDecoders: List[PartialFunction[IRTCursorForMethod, Decoder.Result[IRTReqBody]]]
 
-  def responseDecoders: List[PartialFunction[CursorForMethod, Decoder.Result[ResBody]]]
+  def responseDecoders: List[PartialFunction[IRTCursorForMethod, Decoder.Result[IRTResBody]]]
 
 }

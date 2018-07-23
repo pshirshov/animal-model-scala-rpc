@@ -6,7 +6,7 @@ import com.github.pshirshov.izumi.r2.idealingua.experiments.generated._
 
 import scala.language.{higherKinds, implicitConversions}
 
-trait AbstractGreeterServer[R[_], C] extends GreeterService[R, C] with WithResult[R] {
+trait AbstractGreeterServer[R[_], C] extends GreeterService[R, C] with IRTWithResult[R] {
   override def greet(ctx: C, name: String, surname: String): Result[String] = _Result {
     s"Hi, $name $surname!"
   }
@@ -24,7 +24,7 @@ object AbstractGreeterServer {
 
 }
 
-trait AbstractCalculatorServer[R[_], C] extends CalculatorService[R, C] with WithResult[R] {
+trait AbstractCalculatorServer[R[_], C] extends CalculatorService[R, C] with IRTWithResult[R] {
 
   override def sum(ctx: C, a: Int, b: Int): Result[Int] = _Result {
     a + b

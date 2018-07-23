@@ -4,19 +4,19 @@ import com.github.pshirshov.izumi.r2.idealingua
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.GreeterServiceWrapped.{GreeterServiceInput, SayHiInput}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{CirceWrappedServiceDefinition, CursorForMethod, MuxingCodecProvider}
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.{IRTCirceWrappedServiceDefinition, IRTCursorForMethod, IRTMuxingCodecProvider}
 import io.circe.Decoder.Result
 import io.circe._
 import io.circe.generic.semiauto._
 
 import scala.language.{higherKinds, implicitConversions}
 
-trait CalculatorServiceClient[R[_]] extends WithResultType[R] {
+trait CalculatorServiceClient[R[_]] extends IRTWithResultType[R] {
   def sum(a: Int, b: Int): Result[Int]
 }
 
 
-trait CalculatorService[R[_], C] extends WithResultType[R] {
+trait CalculatorService[R[_], C] extends IRTWithResultType[R] {
   def sum(ctx: C, a: Int, b: Int): Result[Int]
 }
 
@@ -25,7 +25,7 @@ trait CalculatorService[R[_], C] extends WithResultType[R] {
 //}
 
 
-trait CalculatorServiceWrapped[R[_], C] extends WithResultType[R] {
+trait CalculatorServiceWrapped[R[_], C] extends IRTWithResultType[R] {
 
   import CalculatorServiceWrapped._
 
@@ -33,10 +33,10 @@ trait CalculatorServiceWrapped[R[_], C] extends WithResultType[R] {
 }
 
 object CalculatorServiceWrapped
-  extends IdentifiableServiceDefinition
-    with WrappedServiceDefinition
-    with WrappedUnsafeServiceDefinition
-    with CirceWrappedServiceDefinition {
+  extends IRTIdentifiableServiceDefinition
+    with IRTWrappedServiceDefinition
+    with IRTWrappedUnsafeServiceDefinition
+    with IRTCirceWrappedServiceDefinition {
 
   sealed trait CalculatorServiceInput extends AnyRef with Product
 
@@ -53,21 +53,21 @@ object CalculatorServiceWrapped
   override type ServiceServer[R[_], C] = CalculatorService[R, C]
   override type ServiceClient[R[_]] = CalculatorServiceClient[R]
 
-  override def client[R[_] : IRTServiceResult](dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]): CalculatorServiceClient[R] = {
+  override def client[R[_] : IRTServiceResult](dispatcher: IRTDispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]): CalculatorServiceClient[R] = {
     new generated.CalculatorServiceWrapped.PackingDispatcher.Impl[R](dispatcher)
   }
 
 
-  override def clientUnsafe[R[_] : IRTServiceResult](dispatcher: Dispatcher[MuxRequest[Product], MuxResponse[Product], R]): CalculatorServiceClient[R] = {
+  override def clientUnsafe[R[_] : IRTServiceResult](dispatcher: IRTDispatcher[IRTMuxRequest[Product], IRTMuxResponse[Product], R]): CalculatorServiceClient[R] = {
     client(new SafeToUnsafeBridge[R](dispatcher))
   }
 
-  override def server[R[_] : IRTServiceResult, C](service: CalculatorService[R, C]): Dispatcher[InContext[CalculatorServiceInput, C], CalculatorServiceOutput, R] = {
+  override def server[R[_] : IRTServiceResult, C](service: CalculatorService[R, C]): IRTDispatcher[IRTInContext[CalculatorServiceInput, C], CalculatorServiceOutput, R] = {
     new idealingua.experiments.generated.CalculatorServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
 
-  override def serverUnsafe[R[_] : IRTServiceResult, C](service: CalculatorService[R, C]): UnsafeDispatcher[C, R] = {
+  override def serverUnsafe[R[_] : IRTServiceResult, C](service: CalculatorService[R, C]): IRTUnsafeDispatcher[C, R] = {
     new idealingua.experiments.generated.CalculatorServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
@@ -100,12 +100,12 @@ object CalculatorServiceWrapped
 //    implicit val decodeTestPayload: Decoder[CalculatorServiceWrapped.CalculatorServiceOutput] = deriveDecoder
 //  }
 
-  val serviceId = ServiceId("CalculatorService")
+  val serviceId = IRTServiceId("CalculatorService")
 
   trait PackingDispatcher[R[_]]
     extends CalculatorServiceClient[R]
-      with WithResult[R] {
-    def dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
+      with IRTWithResult[R] {
+    def dispatcher: IRTDispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]
 
     def sum(a: Int, b: Int): Result[Int] = {
       val packed = SumInput(a, b)
@@ -114,29 +114,29 @@ object CalculatorServiceWrapped
         case o: SumOutput =>
           o.value
         case o =>
-          throw new TypeMismatchException(s"Unexpected input in CalculatorServiceDispatcherPacking.sum: $o", o)
+          throw new IRTTypeMismatchException(s"Unexpected input in CalculatorServiceDispatcherPacking.sum: $o", o)
       }
     }
   }
 
-  class SafeToUnsafeBridge[R[_] : IRTServiceResult](dispatcher: Dispatcher[MuxRequest[Product], MuxResponse[Product], R]) extends Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with WithResult[R] {
+  class SafeToUnsafeBridge[R[_] : IRTServiceResult](dispatcher: IRTDispatcher[IRTMuxRequest[Product], IRTMuxResponse[Product], R]) extends IRTDispatcher[CalculatorServiceInput, CalculatorServiceOutput, R] with IRTWithResult[R] {
     override protected def _ServiceResult: IRTServiceResult[R] = implicitly
 
     import IRTServiceResult._
 
     override def dispatch(input: CalculatorServiceInput): Result[CalculatorServiceOutput] = {
-      dispatcher.dispatch(MuxRequest(input, toMethodId(input))).map {
-        case MuxResponse(t: CalculatorServiceOutput, _) =>
+      dispatcher.dispatch(IRTMuxRequest(input, toMethodId(input))).map {
+        case IRTMuxResponse(t: CalculatorServiceOutput, _) =>
           t
         case o =>
-          throw new TypeMismatchException(s"Unexpected output in CalculatorServiceSafeToUnsafeBridge.dispatch: $o", o)
+          throw new IRTTypeMismatchException(s"Unexpected output in CalculatorServiceSafeToUnsafeBridge.dispatch: $o", o)
       }
     }
   }
 
   object PackingDispatcher {
 
-    class Impl[R[_] : IRTServiceResult](val dispatcher: Dispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]) extends PackingDispatcher[R] {
+    class Impl[R[_] : IRTServiceResult](val dispatcher: IRTDispatcher[CalculatorServiceInput, CalculatorServiceOutput, R]) extends PackingDispatcher[R] {
       override protected def _ServiceResult: IRTServiceResult[R] = implicitly
     }
 
@@ -144,9 +144,9 @@ object CalculatorServiceWrapped
 
   trait UnpackingDispatcher[R[_], C]
     extends CalculatorServiceWrapped[R, C]
-      with Dispatcher[InContext[CalculatorServiceInput, C], CalculatorServiceOutput, R]
-      with UnsafeDispatcher[C, R]
-      with WithResult[R] {
+      with IRTDispatcher[IRTInContext[CalculatorServiceInput, C], CalculatorServiceOutput, R]
+      with IRTUnsafeDispatcher[C, R]
+      with IRTWithResult[R] {
     def service: CalculatorService[R, C]
 
     def sum(ctx: C, input: SumInput): Result[SumOutput] = {
@@ -154,33 +154,33 @@ object CalculatorServiceWrapped
       _ServiceResult.map(result)(SumOutput.apply)
     }
 
-    def dispatch(input: InContext[CalculatorServiceInput, C]): Result[CalculatorServiceOutput] = {
+    def dispatch(input: IRTInContext[CalculatorServiceInput, C]): Result[CalculatorServiceOutput] = {
       input match {
-        case InContext(v: SumInput, c) =>
+        case IRTInContext(v: SumInput, c) =>
           _ServiceResult.map(sum(c, v))(v => v) // upcast
       }
     }
 
-    override def identifier: ServiceId = serviceId
+    override def identifier: IRTServiceId = serviceId
 
-    private def toZeroargBody(v: Method): Option[CalculatorServiceInput] = {
+    private def toZeroargBody(v: IRTMethod): Option[CalculatorServiceInput] = {
       v match {
         case _ =>
           None
       }
     }
 
-    private def dispatchZeroargUnsafe(input: InContext[Method, C]): Option[Result[MuxResponse[Product]]] = {
-      toZeroargBody(input.value).map(b => _ServiceResult.map(dispatch(InContext(b, input.context)))(v => MuxResponse(v, toMethodId(v))))
+    private def dispatchZeroargUnsafe(input: IRTInContext[IRTMethod, C]): Option[Result[IRTMuxResponse[Product]]] = {
+      toZeroargBody(input.value).map(b => _ServiceResult.map(dispatch(IRTInContext(b, input.context)))(v => IRTMuxResponse(v, toMethodId(v))))
     }
 
-    override def dispatchUnsafe(input: InContext[MuxRequest[Product], C]): Option[Result[MuxResponse[Product]]] = {
+    override def dispatchUnsafe(input: IRTInContext[IRTMuxRequest[Product], C]): Option[Result[IRTMuxResponse[Product]]] = {
       input.value.v match {
         case v: CalculatorServiceInput =>
-          Option(_ServiceResult.map(dispatch(InContext(v, input.context)))(v => MuxResponse(v, toMethodId(v))))
+          Option(_ServiceResult.map(dispatch(IRTInContext(v, input.context)))(v => IRTMuxResponse(v, toMethodId(v))))
 
         case _ =>
-          dispatchZeroargUnsafe(InContext(input.value.method, input.context))
+          dispatchZeroargUnsafe(IRTInContext(input.value.method, input.context))
       }
     }
   }
@@ -193,52 +193,52 @@ object CalculatorServiceWrapped
 
   }
 
-  def toMethodId(v: CalculatorServiceInput): Method = {
+  def toMethodId(v: CalculatorServiceInput): IRTMethod = {
     v match {
-      case _: SumInput => Method(serviceId, MethodId("sum"))
+      case _: SumInput => IRTMethod(serviceId, IRTMethodId("sum"))
     }
   }
 
-  def toMethodId(v: CalculatorServiceOutput): Method = {
+  def toMethodId(v: CalculatorServiceOutput): IRTMethod = {
     v match {
-      case _: SumOutput => Method(serviceId, MethodId("sum"))
+      case _: SumOutput => IRTMethod(serviceId, IRTMethodId("sum"))
     }
   }
 
 
 
-  override def codecProvider: MuxingCodecProvider = CodecProvider
+  override def codecProvider: IRTMuxingCodecProvider = CodecProvider
 
-  object CodecProvider extends MuxingCodecProvider {
+  object CodecProvider extends IRTMuxingCodecProvider {
 
     import io.circe._
     import io.circe.syntax._
 
-    override def requestEncoders: List[PartialFunction[ReqBody, Json]] = List(
+    override def requestEncoders: List[PartialFunction[IRTReqBody, Json]] = List(
       {
-        case ReqBody(v: CalculatorServiceInput) =>
+        case IRTReqBody(v: CalculatorServiceInput) =>
           v.asJson
       }
     )
 
-    override def responseEncoders: List[PartialFunction[ResBody, Json]] = List(
+    override def responseEncoders: List[PartialFunction[IRTResBody, Json]] = List(
       {
-        case ResBody(v: CalculatorServiceOutput) =>
+        case IRTResBody(v: CalculatorServiceOutput) =>
           v.asJson
       }
     )
 
-    override def requestDecoders: List[PartialFunction[CursorForMethod, Result[ReqBody]]] = List(
+    override def requestDecoders: List[PartialFunction[IRTCursorForMethod, Result[IRTReqBody]]] = List(
       {
-        case CursorForMethod(m, packet) if m.service == serviceId =>
-          packet.as[CalculatorServiceInput].map(v => ReqBody(v))
+        case IRTCursorForMethod(m, packet) if m.service == serviceId =>
+          packet.as[CalculatorServiceInput].map(v => IRTReqBody(v))
       }
     )
 
-    override def responseDecoders: List[PartialFunction[CursorForMethod, Result[ResBody]]] = List(
+    override def responseDecoders: List[PartialFunction[IRTCursorForMethod, Result[IRTResBody]]] = List(
       {
-        case CursorForMethod(m, packet) if m.service == serviceId =>
-          packet.as[CalculatorServiceOutput].map(v => ResBody(v))
+        case IRTCursorForMethod(m, packet) if m.service == serviceId =>
+          packet.as[CalculatorServiceOutput].map(v => IRTResBody(v))
       }
     )
   }

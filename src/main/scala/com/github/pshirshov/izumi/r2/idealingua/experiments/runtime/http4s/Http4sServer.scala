@@ -3,26 +3,18 @@ package com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.http4s
 import cats._
 import cats.data.{Kleisli, OptionT}
 import cats.effect._
-import cats.implicits._
 import com.github.pshirshov.izumi.r2.idealingua.experiments.generated.{CalculatorServiceWrapped, GreeterServiceWrapped}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.impls.{AbstractCalculatorServer, AbstractGreeterServer}
 import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime._
-import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.OpinionatedMarshalers
+import com.github.pshirshov.izumi.r2.idealingua.experiments.runtime.circe.IRTOpinionatedMarshalers
 import fs2.StreamApp.ExitCode
 import fs2.{Stream, StreamApp}
 import org.http4s._
 import org.http4s.client.blaze.Http1Client
 import org.http4s.dsl._
 import org.http4s.dsl.io._
-import org.http4s.server.blaze._
-import cats._
-import cats.effect._
-import cats.implicits._
-import cats.data._
-import org.http4s._
-import org.http4s.dsl.io._
-import org.http4s.implicits._
 import org.http4s.server._
+import org.http4s.server.blaze._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.{higherKinds, implicitConversions, reflectiveCalls}
@@ -40,11 +32,11 @@ class Demo[R[_] : IRTServiceResult : Monad, Ctx] {
     val greeterDispatcher = GreeterServiceWrapped.serverUnsafe(greeterService)
     val calculatorDispatcher = CalculatorServiceWrapped.serverUnsafe(calculatorService)
     val dispatchers = List(greeterDispatcher, calculatorDispatcher)
-    new ServerMultiplexor(dispatchers)
+    new IRTServerMultiplexor(dispatchers)
   }
 
   final val codecs = List(GreeterServiceWrapped, CalculatorServiceWrapped)
-  final val marsh = OpinionatedMarshalers(codecs)
+  final val marsh = IRTOpinionatedMarshalers(codecs)
 
   val cm = marsh
   val sm = marsh

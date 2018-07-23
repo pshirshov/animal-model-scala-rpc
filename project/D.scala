@@ -14,6 +14,7 @@ object D {
   val cats_version = "1.1.0"
   val cats_core = "org.typelevel" %% "cats-core" % cats_version
 
+
   val http4s_version = "0.18.0"
   val http4s_client = "org.http4s" %% "http4s-blaze-client" % http4s_version
   val http4s_all: Seq[ModuleID] = Seq(

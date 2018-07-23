@@ -12,27 +12,27 @@ import io.circe.generic.semiauto._
 
 import scala.language.{higherKinds, implicitConversions}
 
-trait GreeterServiceClient[R[_]] extends WithResultType[R] {
+trait GreeterServiceClient[R[_]] extends IRTWithResultType[R] {
   def greet(name: String, surname: String): Result[String]
   def sayhi(): Result[String]
 
 }
 
-trait GreeterService[R[_], C] extends WithResultType[R] {
+trait GreeterService[R[_], C] extends IRTWithResultType[R] {
   def greet(ctx: C, name: String, surname: String): Result[String]
   def sayhi(ctx: C): Result[String]
 }
 
-trait GreeterServiceCtx[R[_], C] extends WithResultType[R] with WithContext[C] {
-  def greet(context: C, name: String, surname: String): Result[String]
-  def sayhi(context: C): Result[String]
-}
+//trait GreeterServiceCtx[R[_], C] extends IRTWithResultType[R] with IRTWithContext[C] {
+//  def greet(context: C, name: String, surname: String): Result[String]
+//  def sayhi(context: C): Result[String]
+//}
 
 
 
 
 
-trait GreeterServiceWrapped[R[_], C] extends WithResultType[R] with WithContext[C] {
+trait GreeterServiceWrapped[R[_], C] extends IRTWithResultType[R] with IRTWithContext[C] {
 
   import GreeterServiceWrapped._
 
@@ -40,10 +40,10 @@ trait GreeterServiceWrapped[R[_], C] extends WithResultType[R] with WithContext[
 }
 
 object GreeterServiceWrapped
-  extends IdentifiableServiceDefinition
-    with WrappedServiceDefinition
-    with WrappedUnsafeServiceDefinition
-    with CirceWrappedServiceDefinition {
+  extends IRTIdentifiableServiceDefinition
+    with IRTWrappedServiceDefinition
+    with IRTWrappedUnsafeServiceDefinition
+    with IRTCirceWrappedServiceDefinition {
 
   sealed trait GreeterServiceInput extends AnyRef with Product
 
@@ -63,21 +63,21 @@ object GreeterServiceWrapped
   override type ServiceClient[R[_]] = GreeterServiceClient[R]
 
 
-  override def client[R[_] : IRTServiceResult](dispatcher: Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]): GreeterServiceClient[R] = {
+  override def client[R[_] : IRTServiceResult](dispatcher: IRTDispatcher[GreeterServiceInput, GreeterServiceOutput, R]): GreeterServiceClient[R] = {
     new generated.GreeterServiceWrapped.PackingDispatcher.Impl[R](dispatcher)
   }
 
 
-  override def server[R[_] : IRTServiceResult, C](service: GreeterService[R, C]): Dispatcher[InContext[GreeterServiceInput, C], GreeterServiceOutput, R] = {
+  override def server[R[_] : IRTServiceResult, C](service: GreeterService[R, C]): IRTDispatcher[IRTInContext[GreeterServiceInput, C], GreeterServiceOutput, R] = {
     new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
 
-  override def serverUnsafe[R[_] : IRTServiceResult, C](service: GreeterService[R, C]): UnsafeDispatcher[C, R] = {
+  override def serverUnsafe[R[_] : IRTServiceResult, C](service: GreeterService[R, C]): IRTUnsafeDispatcher[C, R] = {
     new idealingua.experiments.generated.GreeterServiceWrapped.UnpackingDispatcher.Impl[R, C](service)
   }
 
-  override def clientUnsafe[R[_] : IRTServiceResult](dispatcher: Dispatcher[MuxRequest[Product], MuxResponse[Product], R]): GreeterServiceClient[R] = {
+  override def clientUnsafe[R[_] : IRTServiceResult](dispatcher: IRTDispatcher[IRTMuxRequest[Product], IRTMuxResponse[Product], R]): GreeterServiceClient[R] = {
     client(new SafeToUnsafeBridge[R](dispatcher))
   }
 
@@ -102,12 +102,12 @@ object GreeterServiceWrapped
   }
 
 
-  val serviceId =  ServiceId("GreeterService")
+  val serviceId =  IRTServiceId("GreeterService")
 
   trait PackingDispatcher[R[_]]
     extends GreeterServiceClient[R]
-      with WithResult[R] {
-    def dispatcher: Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]
+      with IRTWithResult[R] {
+    def dispatcher: IRTDispatcher[GreeterServiceInput, GreeterServiceOutput, R]
 
 
     override def sayhi(): Result[String] = {
@@ -117,7 +117,7 @@ object GreeterServiceWrapped
         case o: GreetOutput =>
           o.value
         case o =>
-          throw new TypeMismatchException(s"Unexpected input in GreeterServiceDispatcherPacking.greet: $o", o)
+          throw new IRTTypeMismatchException(s"Unexpected input in GreeterServiceDispatcherPacking.greet: $o", o)
       }
 
     }
@@ -129,29 +129,29 @@ object GreeterServiceWrapped
         case o: GreetOutput =>
           o.value
         case o =>
-          throw new TypeMismatchException(s"Unexpected input in GreeterServiceDispatcherPacking.greet: $o", o)
+          throw new IRTTypeMismatchException(s"Unexpected input in GreeterServiceDispatcherPacking.greet: $o", o)
       }
     }
   }
 
-  class SafeToUnsafeBridge[R[_] : IRTServiceResult](dispatcher: Dispatcher[MuxRequest[Product], MuxResponse[Product], R]) extends Dispatcher[GreeterServiceInput, GreeterServiceOutput, R] with WithResult[R] {
+  class SafeToUnsafeBridge[R[_] : IRTServiceResult](dispatcher: IRTDispatcher[IRTMuxRequest[Product], IRTMuxResponse[Product], R]) extends IRTDispatcher[GreeterServiceInput, GreeterServiceOutput, R] with IRTWithResult[R] {
     override protected def _ServiceResult: IRTServiceResult[R] = implicitly
 
     import IRTServiceResult._
 
     override def dispatch(input: GreeterServiceInput): Result[GreeterServiceOutput] = {
-      dispatcher.dispatch(MuxRequest(input : Product, toMethodId(input))).map {
-        case MuxResponse(t: GreeterServiceOutput, _) =>
+      dispatcher.dispatch(IRTMuxRequest(input : Product, toMethodId(input))).map {
+        case IRTMuxResponse(t: GreeterServiceOutput, _) =>
           t
         case o =>
-          throw new TypeMismatchException(s"Unexpected output in GreeterServiceSafeToUnsafeBridge.dispatch: $o", o)
+          throw new IRTTypeMismatchException(s"Unexpected output in GreeterServiceSafeToUnsafeBridge.dispatch: $o", o)
       }
     }
   }
 
   object PackingDispatcher {
 
-    class Impl[R[_] : IRTServiceResult](val dispatcher: Dispatcher[GreeterServiceInput, GreeterServiceOutput, R]) extends PackingDispatcher[R] {
+    class Impl[R[_] : IRTServiceResult](val dispatcher: IRTDispatcher[GreeterServiceInput, GreeterServiceOutput, R]) extends PackingDispatcher[R] {
       override protected def _ServiceResult: IRTServiceResult[R] = implicitly
     }
 
@@ -159,9 +159,9 @@ object GreeterServiceWrapped
 
   trait UnpackingDispatcher[R[_], C]
     extends GreeterServiceWrapped[R, C]
-      with Dispatcher[InContext[GreeterServiceInput, C], GreeterServiceOutput, R]
-      with UnsafeDispatcher[C, R]
-      with WithResult[R] {
+      with IRTDispatcher[IRTInContext[GreeterServiceInput, C], GreeterServiceOutput, R]
+      with IRTUnsafeDispatcher[C, R]
+      with IRTWithResult[R] {
     def service: GreeterService[R, C]
 
     def greet(context: Context, input: GreetInput): Result[GreetOutput] = {
@@ -174,53 +174,53 @@ object GreeterServiceWrapped
       _ServiceResult.map(result)(GreetOutput.apply)
     }
 
-    def dispatch(input: InContext[GreeterServiceInput, Context]): Result[GreeterServiceOutput] = {
+    def dispatch(input: IRTInContext[GreeterServiceInput, Context]): Result[GreeterServiceOutput] = {
       input match {
-        case InContext(v: GreetInput, c) =>
+        case IRTInContext(v: GreetInput, c) =>
           _ServiceResult.map(greet(c, v))(v => v) // upcast
-        case InContext(v: SayHiInput, c) =>
+        case IRTInContext(v: SayHiInput, c) =>
           _ServiceResult.map(sayhi(c, v))(v => v) // upcast
       }
     }
 
-    override def identifier: ServiceId = serviceId
+    override def identifier: IRTServiceId = serviceId
 
-    private def toZeroargBody(v: Method): Option[GreeterServiceInput] = {
+    private def toZeroargBody(v: IRTMethod): Option[GreeterServiceInput] = {
       v match {
-        case Method(`serviceId`, MethodId("sayhi")) =>
+        case IRTMethod(`serviceId`, IRTMethodId("sayhi")) =>
           Some(SayHiInput())
         case _ =>
           None
       }
     }
 
-    private def dispatchZeroargUnsafe(input: InContext[Method, C]): Option[Result[MuxResponse[Product]]] = {
-      toZeroargBody(input.value).map(b => _ServiceResult.map(dispatch(InContext(b, input.context)))(v => MuxResponse(v, toMethodId(v))))
+    private def dispatchZeroargUnsafe(input: IRTInContext[IRTMethod, C]): Option[Result[IRTMuxResponse[Product]]] = {
+      toZeroargBody(input.value).map(b => _ServiceResult.map(dispatch(IRTInContext(b, input.context)))(v => IRTMuxResponse(v, toMethodId(v))))
     }
 
 
-    override def dispatchUnsafe(input: InContext[MuxRequest[Product], Context]): Option[Result[MuxResponse[Product]]] = {
+    override def dispatchUnsafe(input: IRTInContext[IRTMuxRequest[Product], Context]): Option[Result[IRTMuxResponse[Product]]] = {
       input.value.v match {
         case v: GreeterServiceInput =>
-          Option(_ServiceResult.map(dispatch(InContext(v, input.context)))(v => MuxResponse(v, toMethodId(v))))
+          Option(_ServiceResult.map(dispatch(IRTInContext(v, input.context)))(v => IRTMuxResponse(v, toMethodId(v))))
 
         case v =>
-          dispatchZeroargUnsafe(InContext(input.value.method, input.context))
+          dispatchZeroargUnsafe(IRTInContext(input.value.method, input.context))
       }
     }
   }
 
-  def toMethodId(v: GreeterServiceInput): Method  = {
+  def toMethodId(v: GreeterServiceInput): IRTMethod  = {
     v match {
-      case _: GreetInput => Method(serviceId, MethodId("greet"))
-      case _: SayHiInput => Method(serviceId, MethodId("sayhi"))
+      case _: GreetInput => IRTMethod(serviceId, IRTMethodId("greet"))
+      case _: SayHiInput => IRTMethod(serviceId, IRTMethodId("sayhi"))
     }
   }
 
-  def toMethodId(v: GreeterServiceOutput): Method  = {
+  def toMethodId(v: GreeterServiceOutput): IRTMethod  = {
     v match {
-      case _: GreetOutput => Method(serviceId, MethodId("greet"))
-      case _: SayHiOutput => Method(serviceId, MethodId("sayhi"))
+      case _: GreetOutput => IRTMethod(serviceId, IRTMethodId("greet"))
+      case _: SayHiOutput => IRTMethod(serviceId, IRTMethodId("sayhi"))
     }
   }
 
@@ -235,39 +235,39 @@ object GreeterServiceWrapped
   }
 
 
-  override def codecProvider: MuxingCodecProvider = CodecProvider
+  override def codecProvider: IRTMuxingCodecProvider = CodecProvider
 
-  object CodecProvider extends MuxingCodecProvider {
+  object CodecProvider extends IRTMuxingCodecProvider {
 
     import io.circe._
     import io.circe.syntax._
 
-    override def requestEncoders: List[PartialFunction[ReqBody, Json]] = List(
+    override def requestEncoders: List[PartialFunction[IRTReqBody, Json]] = List(
       {
-        case ReqBody(v: GreeterServiceInput) =>
+        case IRTReqBody(v: GreeterServiceInput) =>
           v.asJson
       }
     )
 
-    override def responseEncoders: List[PartialFunction[ResBody, Json]] = List(
+    override def responseEncoders: List[PartialFunction[IRTResBody, Json]] = List(
       {
-        case ResBody(v: GreeterServiceOutput) =>
+        case IRTResBody(v: GreeterServiceOutput) =>
           v.asJson
       }
     )
 
 
-    override def requestDecoders: List[PartialFunction[CursorForMethod, Result[ReqBody]]] = List(
+    override def requestDecoders: List[PartialFunction[IRTCursorForMethod, Result[IRTReqBody]]] = List(
       {
-        case CursorForMethod(m, packet) if m.service == serviceId =>
-          packet.as[GreeterServiceInput].map(v => ReqBody(v))
+        case IRTCursorForMethod(m, packet) if m.service == serviceId =>
+          packet.as[GreeterServiceInput].map(v => IRTReqBody(v))
       }
     )
 
-    override def responseDecoders: List[PartialFunction[CursorForMethod, Result[ResBody]]] =  List(
+    override def responseDecoders: List[PartialFunction[IRTCursorForMethod, Result[IRTResBody]]] =  List(
       {
-        case CursorForMethod(m, packet) if m.service == serviceId =>
-          packet.as[GreeterServiceOutput].map(v => ResBody(v))
+        case IRTCursorForMethod(m, packet) if m.service == serviceId =>
+          packet.as[GreeterServiceOutput].map(v => IRTResBody(v))
       }
     )
   }
